@@ -1,0 +1,4524 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Electrons</title>
+<link rel="icon" type="image/png" href="images/favicon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Lexend:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  /* ── Variables ─────────────────────────────────────────────────────────── */
+  :root {
+    --accent1:      #ff2d78;
+    --accent1-dim:  rgba(255,45,120,0.22);
+    --accent1-glow: rgba(255,45,120,0.55);
+    --accent2:      #1a6eff;
+    --accent2-dim:  rgba(26,110,255,0.18);
+    --accent2-glow: rgba(26,110,255,0.45);
+    --ui-bg:        rgba(8,6,24,0.42);
+    --ui-border:    rgba(255,255,255,0.07);
+    --text-dim:     rgba(220,215,255,0.55);
+    --text-bright:  rgba(240,235,255,0.92);
+  }
+
+  /* ── Reset & base ──────────────────────────────────────────────────────── */
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: #05040f;
+    color: var(--text-bright);
+    font-family: 'Lexend', sans-serif;
+    overflow: hidden;
+    width: 100vw;
+    height: 100vh;
+  }
+  button, input, select {
+    font-family: 'Lexend', sans-serif;
+  }
+
+  /* ── Full-viewport canvas ──────────────────────────────────────────────── */
+  #canvas {
+    position: fixed;
+    top: 0; left: 0;
+    display: block;
+    z-index: 0;
+  }
+
+  /* ── Toolbar — floating glass overlay ─────────────────────────────────── */
+  #toolbar {
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    z-index: 10;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 10px 20px 10px;
+    background: var(--ui-bg);
+    backdrop-filter: blur(18px);
+    -webkit-backdrop-filter: blur(18px);
+    box-shadow: 0 4px 24px rgba(0,0,0,0.55);
+  }
+
+  .toolbar-row {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    flex-wrap: wrap;
+  }
+
+  /* ── Tab bar ───────────────────────────────────────────────────────────── */
+  #tabBar {
+    display: flex;
+    gap: 8px;
+    padding-bottom: 2px;
+  }
+  .tab-btn {
+    padding: 4px 14px;
+    background: transparent;
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 8px;
+    color: rgba(255,255,255,0.18);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: all 0.2s;
+    box-shadow: none;
+    text-shadow: none;
+    font-family: inherit;
+  }
+  /* Navigation tabs (links to other sims) inherit tab-btn appearance */
+  a.tab-btn { text-decoration: none; cursor: pointer; }
+
+  .tab-btn:hover {
+    color: rgba(255,255,255,0.38);
+    border-color: rgba(255,255,255,0.12);
+  }
+  .tab-btn.active {
+    color: #e8e4ff;
+    border-color: #7b6fff;
+    background: rgba(123,111,255,0.12);
+    box-shadow:
+      inset 0 0 6px rgba(123,111,255,0.15),
+      0 0 2px #7b6fff,
+      0 0 8px #7b6fff,
+      0 0 18px rgba(123,111,255,0.45),
+      0 0 40px rgba(123,111,255,0.15),
+      0 0 70px rgba(123,111,255,0.08);
+    text-shadow:
+      0 0 4px #e8e4ff,
+      0 0 10px #7b6fff,
+      0 0 22px rgba(123,111,255,0.6),
+      0 0 44px rgba(123,111,255,0.25);
+  }
+
+  /* ── Form (ion) buttons ─────────────────────────────────────────────────── */
+  .form-btn {
+    padding: 3px 10px;
+    background: transparent;
+    border: 1px solid rgba(238,255,0,0.22);
+    border-radius: 5px;
+    color: rgba(238,255,0,0.45);
+    font-size: 9px; font-weight: 700; letter-spacing: 1px;
+    text-transform: uppercase; cursor: pointer; font-family: inherit;
+  }
+  .form-btn.active {
+    background: rgba(238,255,0,0.1);
+    border-color: rgba(238,255,0,0.55);
+    color: #eeff00;
+  }
+
+  /* ── Buttons ───────────────────────────────────────────────────────────── */
+  .btn {
+    padding: 4px 14px;
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 8px;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: all 0.2s;
+    background: transparent;
+    color: rgba(255,255,255,0.18);
+    box-shadow: none;
+    text-shadow: none;
+    white-space: nowrap;
+    font-family: inherit;
+  }
+  .btn:hover {
+    color: rgba(255,255,255,0.38);
+    border-color: rgba(255,255,255,0.12);
+  }
+
+  /* Go idle (▶) — accent2 themed */
+  #goBtn {
+    border-color: var(--accent2);
+    color: rgba(255,255,255,0.5);
+    background: var(--accent2-dim);
+    box-shadow:
+      inset 0 0 6px var(--accent2-dim),
+      0 0 2px var(--accent2),
+      0 0 8px var(--accent2),
+      0 0 18px var(--accent2-glow),
+      0 0 40px var(--accent2-dim),
+      0 0 70px var(--accent2-dim);
+    text-shadow:
+      0 0 4px rgba(255,255,255,0.5),
+      0 0 10px var(--accent2),
+      0 0 22px var(--accent2-glow),
+      0 0 44px var(--accent2-dim);
+    display: flex; align-items: center; justify-content: center;
+  }
+  #goBtn:hover { background: var(--accent2-glow); }
+  /* Go running (❙ ❙) — red */
+  #goBtn.running {
+    border-color: #ff4040;
+    color: rgba(255,255,255,0.5);
+    background: rgba(255,40,40,0.15);
+    box-shadow:
+      inset 0 0 6px rgba(255,40,40,0.2),
+      0 0 2px #ff4040,
+      0 0 8px #ff4040,
+      0 0 18px rgba(255,40,40,0.5),
+      0 0 40px rgba(255,40,40,0.2);
+    text-shadow: 0 0 4px rgba(255,255,255,0.5), 0 0 10px #ff4040, 0 0 22px rgba(255,80,80,0.6);
+  }
+  #goBtn.running:hover { background: rgba(255,40,40,0.3); }
+
+  /* Clear — accent2 themed */
+  #clearBtn {
+    border-color: var(--accent2);
+    color: rgba(255,255,255,0.5);
+    background: var(--accent2-dim);
+    box-shadow:
+      inset 0 0 6px var(--accent2-dim),
+      0 0 2px var(--accent2),
+      0 0 8px var(--accent2),
+      0 0 18px var(--accent2-glow),
+      0 0 40px var(--accent2-dim);
+    text-shadow:
+      0 0 4px rgba(255,255,255,0.5),
+      0 0 10px var(--accent2),
+      0 0 22px var(--accent2-glow);
+  }
+  #clearBtn:hover { background: var(--accent2-glow); }
+
+  /* Go / New — squished symbol buttons */
+  #goBtn, #newBtn { padding: 8px 28px; font-size: 22px; letter-spacing: 2px; }
+  #goBtn { font-size: 24px; letter-spacing: 0; padding: 7px 0; width: 90px; line-height: 1; }
+
+  /* ========================================
+     BUTTON GROUPS — stacked option pickers
+     ======================================== */
+  .awheel-item {
+    display: block;
+    padding: 2px 12px;
+    border: 1px solid rgba(255,255,255,0.07);
+    border-radius: 5px;
+    background: transparent;
+    color: rgba(255,255,255,0.15);
+    font-size: 10px;
+    font-weight: 600;
+    font-family: inherit;
+    cursor: pointer;
+    text-align: left;
+    white-space: nowrap;
+    letter-spacing: 0.5px;
+    transition: color 0.15s, border-color 0.15s, background 0.15s,
+                box-shadow 0.15s, text-shadow 0.15s,
+                opacity 0.18s ease, transform 0.22s ease;
+  }
+  .awheel-item:hover:not(.active) {
+    color: var(--accent2);
+    border-color: var(--accent2);
+    background: var(--accent2-dim);
+    box-shadow:
+      0 0 4px var(--accent2),
+      0 0 12px var(--accent2-glow),
+      0 0 26px var(--accent2-dim);
+    text-shadow:
+      0 0 6px var(--accent2),
+      0 0 14px var(--accent2-glow);
+  }
+  .awheel-item.active {
+    color: var(--accent2);
+    border-color: var(--accent2);
+    background: var(--accent2-dim);
+    box-shadow:
+      0 0 3px var(--accent2),
+      0 0 9px var(--accent2-glow),
+      0 0 20px var(--accent2-dim);
+    text-shadow:
+      0 0 5px var(--accent2),
+      0 0 12px var(--accent2-glow);
+  }
+
+  .force-show-btn {
+    display: block; width: 100%;
+    background: var(--accent2);
+    color: #fff;
+    border: none; border-radius: 5px;
+    padding: 6px 14px;
+    font-size: 11px; font-weight: 700; font-family: inherit;
+    cursor: pointer; letter-spacing: 0.5px; white-space: nowrap;
+  }
+  .force-show-btn:hover { background: rgba(26,110,255,0.8); }
+
+  /* New — neon pink, matches Go */
+  #newBtn {
+    border-color: var(--accent1);
+    color: rgba(255,255,255,0.5);
+    background: var(--accent1-dim);
+    box-shadow:
+      inset 0 0 6px var(--accent1-dim),
+      0 0 2px var(--accent1),
+      0 0 8px var(--accent1),
+      0 0 18px var(--accent1-glow),
+      0 0 40px var(--accent1-dim),
+      0 0 70px var(--accent1-dim);
+    text-shadow:
+      0 0 4px rgba(255,255,255,0.5),
+      0 0 10px var(--accent1),
+      0 0 22px var(--accent1-glow),
+      0 0 44px var(--accent1-dim);
+  }
+  #newBtn:hover {
+    background: var(--accent1-glow);
+    box-shadow:
+      inset 0 0 10px var(--accent1-glow),
+      0 0 4px var(--accent1),
+      0 0 14px var(--accent1),
+      0 0 28px var(--accent1-glow),
+      0 0 60px var(--accent1-dim),
+      0 0 100px var(--accent1-dim);
+  }
+
+  /* ── Sliders ───────────────────────────────────────────────────────────── */
+  input[type="range"] {
+    -webkit-appearance: none;
+    appearance: none;
+    height: 4px;
+    border-radius: 3px;
+    background: rgba(255,255,255,0.10);
+    box-shadow:
+      0 0 4px var(--accent2),
+      0 0 12px var(--accent2-glow),
+      0 0 28px var(--accent2-dim);
+    outline: none;
+    cursor: pointer;
+  }
+  input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 10px;
+    height: 24px;
+    border-radius: 3px;
+    background: var(--accent2);
+    border: none;
+    box-shadow:
+      0 0 3px var(--accent2),
+      0 0 10px var(--accent2-glow),
+      0 0 24px var(--accent2-dim),
+      0 0 44px var(--accent2-dim);
+    cursor: grab;
+    transition: box-shadow 0.15s;
+  }
+  input[type="range"]::-webkit-slider-thumb:active {
+    cursor: grabbing;
+    box-shadow:
+      0 0 4px var(--accent2),
+      0 0 18px var(--accent2-glow),
+      0 0 40px var(--accent2-dim),
+      0 0 70px var(--accent2-dim);
+  }
+  input[type="range"]::-moz-range-thumb {
+    width: 10px; height: 24px;
+    border-radius: 3px;
+    background: var(--accent2);
+    border: none;
+    box-shadow: 0 0 3px var(--accent2), 0 0 10px var(--accent2-glow);
+    cursor: grab;
+  }
+
+  .slider-group {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  /* ── Control boxes ─────────────────────────────────────────────────────── */
+  .ctrl-box-pink {
+    display: flex;
+    align-items: center;
+    align-self: stretch;
+    gap: 14px;
+    background: rgba(255,45,120,0.07);
+    border: 1px solid rgba(255,45,120,0.22);
+    border-radius: 12px;
+    padding: 10px 16px;
+    position: relative;
+  }
+  .ctrl-box-pink input[type="range"] { width: 120px; }
+  #elemGrid {
+    display: grid;
+    grid-template-columns: repeat(8, 36px);
+    grid-template-rows: repeat(4, 34px);
+    gap: 2px;
+  }
+  .elem-btn {
+    position: relative;
+    width: 36px;
+    height: 34px;
+    padding: 0;
+    border-radius: 5px;
+    border: 1px solid;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: filter 0.12s;
+    font-family: 'Lexend', sans-serif;
+  }
+  .elem-btn:hover { filter: brightness(1.35); }
+  .elem-btn.active { outline: 2px solid rgba(255,255,255,0.85); outline-offset: 1px; }
+  .elem-btn .el-num { position: absolute; top: 2px; left: 3px; font-size: 9px; line-height: 1; opacity: 0.55; }
+  .elem-btn .el-sym { font-size: 15px; font-weight: 700; line-height: 1; margin-top: 6px; }
+  .elem-btn.alkali     { background: rgba(20,70,200,0.25);  border-color: rgba(80,140,255,0.6);  color: #7ab0ff; }
+  .elem-btn.alkaline   { background: rgba(200,40,80,0.2);   border-color: rgba(255,90,130,0.6);  color: #ff9dbf; }
+  .elem-btn.transition { background: rgba(120,50,200,0.2);  border-color: rgba(170,90,255,0.6);  color: #c090ff; }
+  .elem-btn.carbon-gp  { background: rgba(160,130,0,0.2);   border-color: rgba(220,180,0,0.6);   color: #ddb800; }
+  .elem-btn.halogen    { background: rgba(0,160,140,0.2);   border-color: rgba(0,200,180,0.6);   color: #00c8b4; }
+  .elem-btn.noble      { background: rgba(200,40,140,0.2);  border-color: rgba(255,90,180,0.6);  color: #ff90c0; }
+  .ctrl-box-label {
+    position: absolute;
+    bottom: 100%;
+    margin-bottom: 3px;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    line-height: 1;
+    pointer-events: none;
+  }
+  .ctrl-box-label-pink {
+    right: 14px;
+    color: rgba(255,45,120,0.8);
+    text-shadow: 0 0 6px rgba(255,45,120,0.6), 0 0 16px rgba(255,45,120,0.3);
+  }
+  .ctrl-box-label-blue {
+    left: 14px;
+    color: var(--accent2);
+    opacity: 0.8;
+    text-shadow: 0 0 6px var(--accent2-glow), 0 0 16px var(--accent2-dim);
+  }
+
+  /* ── NEW button nucleus wheel (pwheel-style hover dropdown) ────────────────── */
+  .pwheel { position: relative; display: flex; flex-direction: column; align-self: stretch; }
+  .pwheel-drop {
+    position: absolute;
+    top: calc(100% + 5px);
+    left: 0;
+    transform: translateY(-4px);
+    display: flex;
+    flex-direction: row;
+    gap: 6px;
+    padding: 8px;
+    background: rgba(8,6,24,0.97);
+    border: 1px solid rgba(255,45,120,0.28);
+    border-radius: 12px;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.15s, transform 0.15s;
+    z-index: 200;
+  }
+  .pwheel.open .pwheel-drop { opacity: 1; pointer-events: auto; transform: translateY(0); }
+  .pwheel.locked { opacity: 0.35; pointer-events: none; }
+  .nucleus-opt {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    padding: 6px 8px;
+    border-radius: 8px;
+    border: 1px solid transparent;
+    cursor: pointer;
+    transition: border-color 0.1s, background 0.1s;
+  }
+  .nucleus-opt:hover { border-color: rgba(255,45,120,0.35); background: rgba(255,45,120,0.08); }
+  .nucleus-opt.selected { border-color: rgba(255,45,120,0.65); background: rgba(255,45,120,0.15); }
+  .nucleus-opt-label { font-size: 10px; font-weight: 700; letter-spacing: 0.5px; color: rgba(255,255,255,0.75); font-family: inherit; }
+
+  .ctrl-box-blue {
+    display: flex;
+    align-items: center;
+    align-self: stretch;
+    gap: 18px;
+    background: var(--accent2-dim);
+    border: 1px solid var(--accent2);
+    border-radius: 12px;
+    padding: 10px 16px;
+    position: relative;
+  }
+  .ctrl-box-blue input[type="range"] { width: 150px; }
+  .ctrl-box-blue .slider-icon { font-size: 28px; }
+  .ctrl-box-blue .toggle-label { font-size: 13px; gap: 6px; }
+  .ctrl-box-blue .field-label-electric { font-size: 13px; }
+  .ctrl-box-blue .awheel-item { font-size: 14px; padding: 5px 14px; }
+  .slider-group label {
+    font-size: 10px;
+    color: var(--text-dim);
+    white-space: nowrap;
+    letter-spacing: 0.5px;
+  }
+  .slider-group label span {
+    display: inline-block;
+    min-width: 3em;
+    text-align: right;
+    color: var(--accent2);
+    text-shadow: 0 0 5px var(--accent2-glow);
+  }
+  .slider-group input[type="range"] { width: 80px; }
+
+  .slider-icon {
+    font-size: 18px;
+    line-height: 1;
+    user-select: none;
+    filter:
+      brightness(0) invert(1)
+      blur(0.5px)
+      opacity(0.65)
+      drop-shadow(0 0 4px var(--accent2))
+      drop-shadow(0 0 12px var(--accent2))
+      drop-shadow(0 0 24px var(--accent2-glow));
+  }
+
+  /* ── Toggle labels ─────────────────────────────────────────────────────── */
+  .toggle-label {
+    font-size: 10px;
+    color: var(--text-dim);
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    cursor: pointer;
+    white-space: nowrap;
+    user-select: none;
+  }
+  .toggle-label input[type="checkbox"] { accent-color: var(--accent1); }
+
+  .field-label-electric {
+    color: #46a5ff;
+    text-shadow:
+      0 0 4px #46a5ff,
+      0 0 10px rgba(70,165,255,0.5),
+      0 0 22px rgba(70,165,255,0.2);
+  }
+
+  /* ── Scrub bar — floating glass at bottom ──────────────────────────────── */
+  #scrubBar {
+    position: fixed;
+    bottom: 0; left: 0; right: 0;
+    z-index: 10;
+    display: none;
+    flex-direction: row;
+    background: var(--ui-bg);
+    backdrop-filter: blur(18px);
+    -webkit-backdrop-filter: blur(18px);
+    border-top: 1px solid var(--ui-border);
+    box-shadow: 0 -1px 0 var(--accent1-dim), 0 -4px 20px rgba(0,0,0,0.5);
+  }
+  #scrubBar.visible { display: flex; }
+  /* Left panel: key labels + replay/clock controls */
+  #scrubLeftPanel {
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    flex-shrink: 0;
+    width: 112px;
+    border-right: 1px solid var(--ui-border);
+  }
+  #scrubGraphKey {
+    display: none;
+    flex-direction: column;
+    gap: 6px;
+    flex: 1;
+    justify-content: center;
+    padding: 0 8px;
+    font-size: 14px;
+    font-weight: 700;
+    line-height: 1.25;
+    letter-spacing: 0.02em;
+  }
+  #scrubGraphKey.visible { display: flex; }
+  #scrubControls {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    height: 80px;
+    padding: 0 8px;
+    flex-shrink: 0;
+  }
+  /* Right panel: energyMain (graph+slider) + scrubRowRight (pct+toggle) */
+  #scrubRightPanel {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: row;
+  }
+  #energyMain {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 4px;
+    padding: 6px 0;
+  }
+  #phaseTimeline {
+    display: flex; align-items: stretch;
+    height: 18px; margin: 0;
+    border-radius: 0; overflow: hidden; gap: 0;
+  }
+  #phaseTimeline .phase-seg {
+    display: flex; align-items: center; justify-content: center;
+    font-size: 11px; font-weight: 800; letter-spacing: 0.08em;
+    overflow: hidden; white-space: nowrap; min-width: 0; transition: opacity 0.15s;
+    text-shadow: 0 0 8px currentColor;
+  }
+  #egZoomHint {
+    font-size: 12px;
+    color: rgba(220,215,255,0.45);
+    text-align: center;
+    letter-spacing: 0.02em;
+    margin-top: 4px;
+  }
+  #scrubRowRight {
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0;
+    width: 270px;
+  }
+  #scrubButtons {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    height: 80px;
+    padding: 0 12px;
+    flex-shrink: 0;
+    margin-top: auto;
+  }
+  #energyGraphBox {
+    display: none;
+    flex-direction: column;
+    border-bottom: 1px solid rgba(26,110,255,0.25);
+    background: rgba(26,110,255,0.04);
+  }
+  #energyGraphBox.visible { display: flex; }
+  #scrubPercents {
+    display: none;
+    flex: 1;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    padding: 8px 12px;
+    font-size: 22px;
+    font-weight: 700;
+    line-height: 1;
+  }
+  #scrubPercents.visible { display: flex; }
+  #energyPctNums {
+    display: flex;
+    gap: 10px;
+  }
+  #energyPctNote {
+    font-size: 12px;
+    color: #ff3a6e;
+    text-align: center;
+    letter-spacing: 0.02em;
+    line-height: 1.3;
+  }
+  #energyGraphToggle {
+    border: 1px solid var(--accent2);
+    border-radius: 8px;
+    font-size: 15px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    cursor: pointer;
+    background: var(--accent2-dim);
+    color: rgba(255,255,255,0.5);
+    font-family: inherit;
+    flex: 1;
+    line-height: 1.25;
+    padding: 6px 10px;
+    text-align: center;
+    white-space: normal;
+    box-shadow:
+      inset 0 0 6px var(--accent2-dim),
+      0 0 2px var(--accent2), 0 0 8px var(--accent2),
+      0 0 18px var(--accent2-glow), 0 0 40px var(--accent2-dim);
+    text-shadow: 0 0 4px rgba(255,255,255,0.5), 0 0 10px var(--accent2);
+    transition: all 0.2s;
+  }
+  #energyGraphToggle:hover { background: var(--accent2-glow); }
+  #energyGraphToggle.active {
+    box-shadow:
+      inset 0 0 8px var(--accent2-dim),
+      0 0 4px var(--accent2), 0 0 14px var(--accent2),
+      0 0 28px var(--accent2-glow), 0 0 55px var(--accent2-dim);
+  }
+  #energyGraph {
+    display: block;
+    width: 100%;
+    height: 110px;
+    cursor: crosshair;
+  }
+  #scrubRow {
+    display: flex;
+    align-items: center;
+    height: 55px;
+    padding: 0;
+  }
+  #scrubBar .scrub-label {
+    font-size: 10px;
+    color: var(--text-dim);
+    white-space: nowrap;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+  }
+  #scrubSlider { flex: 1; }
+  #scrubSlider:disabled { opacity: 0.18; cursor: not-allowed; }
+  #scrubPct { display: none; }
+
+  .theme-btn {
+    width: 18px; height: 18px;
+    border-radius: 50%;
+    border: 1px solid rgba(255,255,255,0.12);
+    cursor: pointer;
+    transition: transform 0.15s, box-shadow 0.15s;
+    flex-shrink: 0;
+    box-shadow: none;
+  }
+  .theme-btn:hover { transform: scale(1.2); box-shadow: 0 0 8px rgba(255,255,255,0.3); }
+  .theme-btn.active {
+    border-color: rgba(255,255,255,0.55);
+    box-shadow: 0 0 6px rgba(255,255,255,0.4), 0 0 14px rgba(255,255,255,0.15);
+  }
+  #themeA { background: #1a6eff; }
+  #themeB { background: #bd00ff; }
+  #themeC { background: #00f5e0; }
+  #themeLight { background: #fff; }
+  #bgColorPicker { display:none; width:22px; height:22px; padding:2px; border-radius:4px; border:1px solid rgba(0,0,0,0.25); cursor:pointer; vertical-align:middle; margin-left:4px; }
+  body.screenshot-mode #bgColorPicker { display:inline-block; }
+  body.screenshot-mode #themeLight { display: none; }
+  body.screenshot-mode { background: var(--bg-color, #fff) !important; }
+  body.screenshot-mode #toolbar { background: rgba(255,255,255,0.42) !important; box-shadow: none !important; }
+  body.screenshot-mode #toolbar,
+  body.screenshot-mode #toolbar * {
+    color: #000 !important;
+    text-shadow: none !important;
+  }
+  body.screenshot-mode #toolbar button {
+    border-color: #000 !important;
+    box-shadow: none !important;
+  }
+  body.screenshot-mode #toolbar .tab-btn:not(.active) {
+    color: #888 !important;
+    border-color: #888 !important;
+    background: transparent !important;
+  }
+  body.screenshot-mode #toolbar .tab-btn.active {
+    color: #000 !important;
+    border-color: #000 !important;
+    background: rgba(0,0,0,0.06) !important;
+  }
+  body.screenshot-mode input[type="range"] {
+    box-shadow: none !important;
+    background: rgba(0,0,0,0.15) !important;
+  }
+  body.screenshot-mode input[type="range"]::-webkit-slider-thumb {
+    background: #000 !important;
+    box-shadow: none !important;
+  }
+  body.screenshot-mode input[type="range"]::-moz-range-thumb {
+    background: #000 !important;
+    box-shadow: none !important;
+  }
+  body.screenshot-mode .slider-icon {
+    filter: brightness(0) !important;
+    opacity: 1 !important;
+  }
+  body.screenshot-mode #bugReportBtn .slider-icon {
+    filter: drop-shadow(0 0 5px rgba(200,0,0,0.8)) drop-shadow(0 0 14px rgba(180,0,0,0.5)) !important;
+    background: rgba(210,210,210,0.85) !important;
+  }
+  body.screenshot-mode #qualitySelect {
+    background: rgba(220,220,220,0.5) !important;
+    color: rgba(0,0,0,0.35) !important;
+    border-color: rgba(0,0,0,0.12) !important;
+  }
+  body.screenshot-mode #scrubBar {
+    background: rgba(255,255,255,0.42) !important;
+    border-top-color: rgba(0,0,0,0.15) !important;
+    box-shadow: none !important;
+  }
+  body.screenshot-mode #scrubBar,
+  body.screenshot-mode #scrubBar * { color: #000 !important; text-shadow: none !important; }
+  body.screenshot-mode #ieKeyLabel,
+  body.screenshot-mode #energyPctIE { color: #777 !important; }
+  body.screenshot-mode #scrubBar button { border-color: #000 !important; box-shadow: none !important; }
+  body.screenshot-mode #scrubSlider { accent-color: #000 !important; }
+  body.screenshot-mode #energyGraph { background: #fff !important; }
+  /* Preserve educational color codes: electric = blue, strong = orange */
+  body.screenshot-mode .field-label-electric { color: #46a5ff !important; }
+  body.screenshot-mode .field-label-strong   { color: #ffb946 !important; }
+  body.screenshot-mode img[alt="logo"] { display: none !important; }
+  body.screenshot-mode .pwheel-drop { background: rgba(255,255,255,0.97) !important; border-color: rgba(200,30,60,0.25) !important; }
+  body.screenshot-mode .nucleus-opt { border-color: transparent !important; background: transparent !important; }
+  body.screenshot-mode .nucleus-opt:hover { border-color: rgba(200,30,60,0.3) !important; background: rgba(255,180,190,0.25) !important; }
+  body.screenshot-mode .nucleus-opt.selected { border-color: rgba(200,30,60,0.55) !important; background: rgba(255,180,190,0.4) !important; }
+  body.screenshot-mode .nucleus-opt-label { color: rgba(0,0,0,0.75) !important; }
+
+  /* ── Quality select ──────────────────────────────────────────────────────── */
+  #qualitySelect {
+    background: rgba(10,8,20,0.5); color: rgba(255,255,255,0.18);
+    border: 1px solid rgba(255,255,255,0.04); border-radius: 4px;
+    padding: 2px 4px; font-size: 12px; font-family: inherit; cursor: pointer;
+  }
+  #qualitySelect:focus { outline: 1px solid rgba(255,100,100,0.4); }
+  #qualitySelect:hover { color: rgba(255,255,255,0.55); border-color: rgba(255,255,255,0.18); }
+
+  /* ── Dev panel ──────────────────────────────────────────────────────────── */
+  .dev-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+    color: rgba(220,215,255,0.6);
+  }
+  .dev-row label { white-space: nowrap; flex-shrink: 0; }
+  .dev-row input[type=range] { flex: 1; accent-color: #eeff00; }
+  .dev-val { width: 56px; text-align: right; color: #eeff00; font-variant-numeric: tabular-nums; }
+  body.dev-hidden .dev-ui { display: none !important; }
+
+  /* ── Force viz panel (draggable, resizable) ────────────────────────────── */
+  #forceVizPanel {
+    display: none;
+    position: fixed;
+    right: 20px;
+    border-radius: 12px;
+    width: 424px;
+    height: 512px;
+    background: rgba(8,6,24,0.90);
+    border: 1px solid var(--accent2);
+    z-index: 15;
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    padding: 10px 10px 8px;
+    box-shadow: 0 0 24px var(--accent2-dim);
+    cursor: grab;
+    user-select: none;
+    min-width: 140px;
+    min-height: 140px;
+    overflow: visible;
+  }
+  #forceVizPanel:active { cursor: grabbing; }
+  #forceVizPanel .fp-rh { position: absolute; z-index: 2; }
+  #forceVizPanel .fp-rh:hover { background: var(--accent2-dim); border-radius: 3px; }
+  #forceVizPanel .fp-rh.n  { top:0; left:10px; right:10px; height:6px; cursor:n-resize; }
+  #forceVizPanel .fp-rh.s  { bottom:0; left:10px; right:10px; height:6px; cursor:s-resize; }
+  #forceVizPanel .fp-rh.e  { right:0; top:10px; bottom:10px; width:6px; cursor:e-resize; }
+  #forceVizPanel .fp-rh.w  { left:0; top:10px; bottom:10px; width:6px; cursor:w-resize; }
+  #forceVizPanel .fp-rh.nw { top:0; left:0; width:12px; height:12px; cursor:nw-resize; }
+  #forceVizPanel .fp-rh.ne { top:0; right:0; width:12px; height:12px; cursor:ne-resize; }
+  #forceVizPanel .fp-rh.sw { bottom:0; left:0; width:12px; height:12px; cursor:sw-resize; }
+  #forceVizPanel .fp-rh.se { bottom:0; right:0; width:12px; height:12px; cursor:se-resize; }
+  #forceVizKey {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 4px 14px;
+    font-size: 14px;
+    letter-spacing: 1px;
+    margin-bottom: 8px;
+    text-transform: uppercase;
+  }
+  #forceVizKey span { display: flex; align-items: center; gap: 5px; }
+  #forceVizCanvas { display: block; }
+</style>
+
+</head>
+<body data-tab="builder" class="dev-hidden">
+
+<canvas id="canvas"></canvas>
+
+
+
+
+<div id="toolbar">
+  <div class="toolbar-row">
+    <div id="tabBar"></div>
+    <div style="display:flex;align-items:center;gap:6px;margin-left:auto;">
+      <select id="qualitySelect">
+        <option value="hi-res">Hi-res</option>
+        <option value="detailed">Detailed</option>
+        <option value="simple">Simple</option>
+      </select>
+      <button class="theme-btn active" id="themeA" title="Synthwave"></button>
+      <button class="theme-btn" id="themeB" title="Industrial"></button>
+      <button class="theme-btn" id="themeC" title="Neon Blue"></button>
+      <button class="theme-btn" id="themeLight" title="Light mode"></button>
+<input type="color" id="bgColorPicker" value="#ffffff" title="Background color">
+      <a id="bugReportBtn" title="Report a bug" style="cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;"><span class="slider-icon" style="background:white;border-radius:50%;padding:2px;filter:drop-shadow(0 0 5px rgba(255,50,50,0.95)) drop-shadow(0 0 14px rgba(255,30,30,0.7)) drop-shadow(0 0 28px rgba(220,0,0,0.45));">🐞</span></a>
+    </div>
+  </div>
+  <div class="toolbar-row">
+    <!-- Far left: CLEAR column -->
+    <div style="display:flex;flex-direction:column;align-self:stretch;gap:6px;padding:10px 0">
+      <button id="clearBtn" class="btn" style="flex:1">Reset</button>
+    </div>
+
+    <!-- Pink box: element picker grid -->
+    <div class="ctrl-box-pink" style="flex-direction:column;align-items:flex-start;gap:7px;">
+      <span class="ctrl-box-label ctrl-box-label-pink">PARTICLES</span>
+      <div style="display:flex;gap:8px;align-items:flex-start">
+        <div id="elemGrid"></div>
+        <!-- Particle counts + form buttons to the right -->
+        <div style="display:flex;flex-direction:column;gap:5px;padding-top:2px">
+          <div style="background:rgba(255,255,255,0.05);border-radius:6px;padding:5px 9px;color:var(--text-dim);white-space:nowrap;display:flex;flex-direction:column;gap:1px;">
+            <div style="display:flex;align-items:baseline;gap:5px;">
+              <span style="font-size:16px;opacity:0.7;width:22px">P</span>
+              <span id="p1Protons" style="font-size:20px;font-weight:600;color:var(--accent1);line-height:1.1">0</span>
+            </div>
+            <div style="display:flex;align-items:baseline;gap:5px;">
+              <span style="font-size:16px;opacity:0.7;width:22px">e⁻</span>
+              <span id="electronCount" style="font-size:20px;font-weight:600;color:#eeff00;text-shadow:0 0 8px rgba(238,255,0,0.6);line-height:1.1">0</span>
+            </div>
+            <div style="display:flex;align-items:baseline;gap:5px;border-top:1px solid rgba(255,255,255,0.08);margin-top:3px;padding-top:3px;">
+              <span style="font-size:10px;opacity:0.7;width:18px">u</span>
+              <span id="atomMass" style="font-size:16px;font-weight:500;color:rgba(200,220,255,0.85);font-variant-numeric:tabular-nums;line-height:1.1">0.000</span>
+            </div>
+          </div>
+          <div id="formBtnsBox" style="display:flex;flex-direction:column;gap:3px;"></div>
+        </div>
+      </div>
+      <!-- Hidden slider kept in DOM for setNucleusFromZ compatibility -->
+      <input type="range" id="protonSlider" min="0" max="36" step="1" value="16" style="display:none">
+      <span id="protonSliderVal" style="display:none">16</span>
+    </div>
+
+    <!-- Blue box: stacked sliders + electric field + particles + forces -->
+    <div class="ctrl-box-blue">
+      <span class="ctrl-box-label ctrl-box-label-blue">VISUALS</span>
+      <div style="display:flex;flex-direction:column;gap:10px;justify-content:space-evenly;align-self:stretch">
+        <div style="display:flex;flex-direction:column;gap:3px">
+          <div class="slider-group" id="zoomSliderRow">
+            <span class="slider-icon" style="visibility:hidden"><img src="images/Turtle.png" style="height:0.85em;vertical-align:middle;display:block"></span>
+            <input type="range" id="zoomSlider" min="-1" max="1" step="0.01" value="0">
+            <span class="slider-icon">🔍</span>
+          </div>
+          <div style="font-size:8px;color:rgba(200,190,255,0.32);text-align:center;letter-spacing:0.04em">right-click to drag</div>
+        </div>
+        <label class="toggle-label" id="autoscaleRow">
+          <input type="checkbox" id="autoscaleCheckbox" checked>
+          <span class="field-label-electric">Autoscale</span>
+        </label>
+        <label class="toggle-label" id="showElectricRow">
+          <input type="checkbox" id="showElectric">
+          <span class="field-label-electric">Show atomic radius</span>
+        </label>
+        <div style="display:flex;gap:10px" id="showGridRow">
+          <label class="toggle-label">
+            <input type="checkbox" id="showGridCheckbox">
+            <span class="field-label-electric">Grid</span>
+          </label>
+          <label class="toggle-label" id="forceValuesLabel" style="display:none">
+            <input type="checkbox" id="showForceValuesCheckbox">
+            <span class="field-label-electric">Force Values</span>
+          </label>
+        </div>
+
+      </div>
+      <div style="display:flex;gap:10px;align-self:stretch;align-items:center">
+        <div style="display:flex;flex-direction:column;gap:4px">
+          <button class="awheel-item active" data-tab="shells" style="padding:3px 18px;font-size:15px">Shells</button>
+          <button class="awheel-item" data-tab="trails" id="trailsTabBtn" style="display:none;padding:3px 18px;font-size:15px">iTunes Visualizer</button>
+          <button class="awheel-item" data-tab="orbit3d" style="padding:3px 18px;font-size:15px">Trails</button>
+        </div>
+        <div id="forceCtrlBox" style="display:flex;flex-direction:column;gap:4px">
+          <button id="showForcesBtn" class="force-show-btn" style="display:none;min-height:72px">Show forces</button>
+          <div id="forceActiveCtrl" style="display:flex;flex-direction:column;gap:4px">
+            <button class="awheel-item" id="hideForcesBtn">Hide forces</button>
+            <button class="awheel-item active" data-fvmode="shell">Force on Shell</button>
+            <button class="awheel-item" data-fvmode="electron">Force on Electron</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Radius mode toggle -->
+    <div class="dev-ui" style="display:flex;flex-direction:column;align-items:center;gap:3px;align-self:center;margin-left:6px;">
+      <span style="font-size:9px;letter-spacing:0.08em;color:rgba(255,255,255,0.35);font-weight:600;">radius</span>
+      <select id="radiusModeSelect" style="font-size:9px;background:rgba(255,255,255,0.07);color:rgba(255,255,255,0.55);border:1px solid rgba(255,255,255,0.15);border-radius:4px;padding:2px 3px;cursor:pointer;">
+        <option value="covalent">Half a pair</option>
+        <option value="vdw">VdW / Shannon</option>
+      </select>
+      <select id="gridTypeSelect" style="font-size:9px;background:rgba(255,255,255,0.07);color:rgba(255,255,255,0.55);border:1px solid rgba(255,255,255,0.15);border-radius:4px;padding:2px 3px;cursor:pointer;">
+        <option value="square">square grid</option>
+        <option value="radial">radial grid</option>
+      </select>
+    </div>
+
+    <!-- Dev toggle -->
+    <label class="dev-ui" style="display:flex;flex-direction:column;align-items:center;gap:3px;cursor:pointer;align-self:center;margin-left:4px;">
+      <input type="checkbox" id="devToggle" style="accent-color:#eeff00;width:12px;height:12px;">
+      <span style="font-size:9px;letter-spacing:0.08em;color:rgba(238,255,0,0.45);font-weight:600;">dev</span>
+    </label>
+  </div>
+  <div id="devSlidersRow" class="toolbar-row dev-ui" style="display:none;gap:18px;flex-wrap:wrap;padding-top:4px;border-top:1px solid var(--ui-border)">
+    <div class="dev-row" style="display:none"><label>k</label><input type="range" id="slK" min="1000" max="500000" step="5000" value="140000"><span class="dev-val" id="slKVal">140000</span></div>
+    <div class="dev-row" style="display:none"><label>e⁻ rep</label><input type="range" id="slRepulse" min="0" max="200000" step="2000" value="50000"><span class="dev-val" id="slRepulseVal">50000</span></div>
+    <div class="dev-row" style="display:none"><label>Damp</label><input type="range" id="slDamp" min="0.990" max="1.000" step="0.0001" value="1.000"><span class="dev-val" id="slDampVal">1.0000</span></div>
+    <div class="dev-row" style="display:none"><label>Min r</label><input type="range" id="slMinR" min="5" max="100" step="1" value="80"><span class="dev-val" id="slMinRVal">80</span></div>
+    <div class="dev-row" style="display:none"><label>Max r</label><input type="range" id="slMaxR" min="5" max="500" step="5" value="90"><span class="dev-val" id="slMaxRVal">90</span></div>
+    <div class="dev-row" style="display:none"><label>dt</label><input type="range" id="slDt" min="0.05" max="2.0" step="0.05" value="1.45"><span class="dev-val" id="slDtVal">1.45</span></div>
+    <div class="dev-row" style="display:none"><label>Trail</label><input type="range" id="slTrail" min="0" max="300" step="5" value="105"><span class="dev-val" id="slTrailVal">105</span></div>
+    <div class="dev-row"><label>px/pm</label><input type="range" id="slBaseR" min="2" max="50" step="1" value="15"><span class="dev-val" id="slBaseRVal">15</span></div>
+    <div class="dev-row"><label>dot size</label><input type="range" id="slElectronDot" min="0" max="20" step="0.5" value="9"><span class="dev-val" id="slElectronDotVal">9.0</span></div>
+    <div class="dev-row" style="display:none"><label>shrink</label><input type="range" id="slShrink" min="0" max="1" step="0.01" value="0.05"><span class="dev-val" id="slShrinkVal">0.05</span></div>
+    <div class="dev-row" style="display:none"><label>arrow exp</label><input type="range" id="slFvExp" min="0.05" max="0.5" step="0.01" value="0.13"><span class="dev-val" id="slFvExpVal">0.20</span></div>
+    <div class="dev-row" style="display:none"><label>r-jitter</label><input type="range" id="slRadialJitter" min="0" max="2" step="0.05" value="1"><span class="dev-val" id="slRadialJitterVal">1.000</span></div>
+    <div class="dev-row" style="display:none"><label>a-jitter</label><input type="range" id="slAngularJitter" min="0" max="0.1" step="0.001" value="0.05"><span class="dev-val" id="slAngularJitterVal">0.0500</span></div>
+    <div class="dev-row" style="display:none"><label>band hw</label><input type="range" id="slBandHW" min="-300" max="500" step="5" value="60"><span class="dev-val" id="slBandHWVal">60</span></div>
+    <div id="shellDevSliders"></div>
+  </div>
+</div>
+<div id="orbit3dOverlay" class="dev-ui" style="display:none;position:fixed;bottom:0;left:0;right:0;z-index:90;background:rgba(5,4,15,0.92);backdrop-filter:blur(8px);border-top:1px solid rgba(26,110,255,0.18);padding:10px 18px 12px">
+  <div id="orbit3dDevSliders" style="display:flex;gap:16px;align-items:flex-start;flex-wrap:wrap"></div>
+</div>
+<div id="forceVizPanel">
+  <div class="fp-rh nw" data-dir="nw"></div><div class="fp-rh ne" data-dir="ne"></div>
+  <div class="fp-rh sw" data-dir="sw"></div><div class="fp-rh se" data-dir="se"></div>
+  <div class="fp-rh n"  data-dir="n"></div><div class="fp-rh s"  data-dir="s"></div>
+  <div class="fp-rh e"  data-dir="e"></div><div class="fp-rh w"  data-dir="w"></div>
+  <div id="forceVizKey">
+    <span><span style="color:#ff44cc">■</span><span style="color:#ff44cc;text-shadow:0 0 4px #ff44cc,0 0 10px rgba(255,68,204,0.5)">Attraction to Protons (electric)</span></span>
+    <span><span style="color:#00eeff">■</span><span style="color:#00eeff;text-shadow:0 0 4px #00eeff,0 0 10px rgba(0,238,255,0.5)">Repulsion from Electrons (electric)</span></span>
+  </div>
+  <canvas id="forceVizCanvas" width="333" height="180"></canvas>
+</div>
+
+<span id="scrubPct" style="display:none">0</span>
+
+<div id="scrubBar">
+  <div id="scrubLeftPanel">
+    <div id="scrubGraphKey">
+      <div id="keKeyLabel" style="color:#ff3a6e;text-shadow:0 0 8px rgba(255,45,100,0.8)"><svg width="22" height="4" style="vertical-align:middle;margin-right:5px"><line x1="0" y1="2" x2="22" y2="2" stroke="currentColor" stroke-width="2.5"/></svg>Energy<br>of Motion</div>
+      <div id="ieKeyLabel" style="color:#7b6fff;text-shadow:0 0 8px rgba(120,100,255,0.8)"><svg width="22" height="4" style="vertical-align:middle;margin-right:5px"><line x1="0" y1="2" x2="22" y2="2" stroke="currentColor" stroke-width="2.5" stroke-dasharray="5,4"/></svg>Energy<br>in Fields</div>
+    </div>
+    <div id="scrubControls">
+      <div style="display:flex;flex-direction:column;align-items:center;gap:2px;">
+        <span class="slider-icon" style="font-size:32px"><img src="images/Stopwatch.png" style="height:1em;vertical-align:middle;display:block"></span>
+        <div id="frameCounter" style="font-size:9px;color:rgba(180,180,220,0.5);text-align:center;line-height:1;"></div>
+      </div>
+    </div>
+  </div>
+  <div id="scrubRightPanel">
+    <div id="energyMain">
+      <div id="energyGraphBox">
+        <canvas id="energyGraph" width="100" height="110"></canvas>
+      </div>
+      <div id="scrubRow">
+        <input type="range" id="scrubSlider" min="0" max="1000" value="0" disabled>
+      </div>
+    </div>
+    <div id="scrubRowRight">
+      <div id="scrubPercents">
+        <div id="energyPctNums">
+          <span id="energyPctKE" style="color:#ff2060;text-shadow:0 0 8px rgba(255,20,80,0.7);">45%</span>
+          <span id="energyPctIE" style="color:#7b6fff;text-shadow:0 0 8px rgba(120,100,255,0.7);">55%</span>
+        </div>
+        <div id="energyPctNote">Energy changes are not to scale</div>
+        <div id="egZoomHint">Click and drag on the line graph to zoom in</div>
+      </div>
+      <div id="scrubButtons">
+        <button id="energyGraphToggle" class="btn">SHOW LINE<br>GRAPH</button>
+        <img src="images/logo-placeholder.png" alt="logo" style="height:60px;width:auto;opacity:0;display:block;border-radius:4px;flex-shrink:0;">
+      </div>
+    </div>
+  </div>
+</div>
+
+
+
+<script>
+// ── Atom Builder JS ──────────────────────────────────────────────────────────
+// ─── Constants ────────────────────────────────────────────────────────────────
+const PARTICLE_RADIUS = 10;
+const coulombStrength = 150;
+
+// ─── Canvas ───────────────────────────────────────────────────────────────────
+const canvas   = document.getElementById('canvas');
+const ctx      = canvas.getContext('2d');
+const egCanvas = document.getElementById('energyGraph');
+const egCtx    = egCanvas.getContext('2d');
+
+// ─── Heatmap buffers ──────────────────────────────────────────────────────────
+const hmCanvas    = document.createElement('canvas');
+const hmCtx       = hmCanvas.getContext('2d');
+const hmComposite = document.createElement('canvas');
+const hmcCtx      = hmComposite.getContext('2d');
+
+let hmW = 0, hmH = 0;
+let hmDataElec = null;
+let hmImgElec  = null;
+let heatmapDirty    = true;
+
+// ── Quality selector ──────────────────────────────────────────────────────────
+let _quality = 'hi-res';  // 'hi-res' | 'detailed' | 'simple'
+
+// ── Dev perf toggles (driven by _applyQuality) ────────────────────────────────
+let _flatFill = true;
+
+function _applyQuality(level) {
+  _quality = level;
+  const el = document.getElementById('qualitySelect');
+  if (el) el.value = level;
+  _flatFill = true;
+}
+
+// Draws 100 gradient+shadowBlur particles to an offscreen canvas and returns ms.
+// getImageData() at the end forces a GPU sync so the time is real.
+// A 15-particle warm-up pass runs first to settle JIT and GPU init cost.
+function _runPerfBenchmark() {
+  const oc = document.createElement('canvas');
+  oc.width = 300; oc.height = 300;
+  const dc = oc.getContext('2d');
+  const R = PARTICLE_RADIUS;
+  for (let i = 0; i < 15; i++) {
+    const x = 15 + (i % 5) * 40, y = 15 + Math.floor(i / 5) * 40;
+    const g = dc.createRadialGradient(x, y, 0, x, y, R);
+    g.addColorStop(0, '#ff1a65'); g.addColorStop(1, 'rgba(0,0,0,0)');
+    dc.fillStyle = g; dc.beginPath(); dc.arc(x, y, R, 0, Math.PI * 2); dc.fill();
+  }
+  const t0 = performance.now();
+  for (let i = 0; i < 100; i++) {
+    const x = 15 + (i % 10) * 27, y = 15 + Math.floor(i / 10) * 27;
+    const g1 = dc.createRadialGradient(x, y, 0, x, y, R * 1.1);
+    g1.addColorStop(0, '#ff1a65'); g1.addColorStop(0.82, '#ff1a65'); g1.addColorStop(1, 'rgba(0,0,0,0)');
+    dc.fillStyle = g1; dc.beginPath(); dc.arc(x, y, R * 1.1, 0, Math.PI * 2); dc.fill();
+    const g2 = dc.createRadialGradient(x, y, 0, x, y, R);
+    g2.addColorStop(0, '#ff80b0'); g2.addColorStop(0.5, '#ff80b0'); g2.addColorStop(1, 'rgba(0,0,0,0)');
+    dc.save(); dc.shadowColor = '#ff80b0'; dc.shadowBlur = 8; dc.globalAlpha = 0.82;
+    dc.fillStyle = g2; dc.beginPath(); dc.arc(x, y, R, 0, Math.PI * 2); dc.fill();
+    dc.restore(); dc.globalAlpha = 1;
+  }
+  dc.getImageData(0, 0, 1, 1); // force GPU flush so timing is real
+  return performance.now() - t0;
+}
+
+function resize() {
+  canvas.width   = window.innerWidth;
+  canvas.height  = window.innerHeight;
+  egCanvas.width  = Math.max(1, egCanvas.offsetWidth || (window.innerWidth - 112));
+  egCanvas.height = 110;
+  heatmapDirty   = true;
+}
+resize();
+window.addEventListener('resize', () => {
+  const oldCx = animParent ? animParent.cx : null;
+  const oldCy = animParent ? animParent.cy : null;
+  resize();
+  heatmapDirty = true;
+  if (animParent && oldCx !== null) {
+    const newCx = canvas.width / 2;
+    const newCy = canvas.height / 2;
+    const dx = newCx - oldCx, dy = newCy - oldCy;
+    animParent.cx = newCx; animParent.cy = newCy;
+    for (const p of animParent.particles) { p.x += dx; p.y += dy; }
+    buildNucleusImages();
+    for (const e of electrons) {
+      e.x += dx; e.y += dy;
+      for (const t of e.trail) { t.x += dx; t.y += dy; }
+    }
+    if (animParentB) {
+      animParentB.cx += dx; animParentB.cy += dy;
+      for (const p of animParentB.particles) { p.x += dx; p.y += dy; }
+      for (const e of electronsB) {
+        e.x += dx; e.y += dy;
+        for (const t of e.trail) { t.x += dx; t.y += dy; }
+      }
+    }
+  }
+  if (autoScaleZoom) applyAutoScale();
+  draw();
+});
+
+function ensureHmBuffers(w, h) {
+  if (hmW === w && hmH === h) return;
+  hmW = w; hmH = h;
+  hmCanvas.width    = w; hmCanvas.height = h;
+  hmDataElec = new Uint8ClampedArray(w * h * 4);
+  hmImgElec  = new ImageData(hmDataElec, w, h);
+}
+
+// ─── Colormaps ────────────────────────────────────────────────────────────────
+function buildColorstops(stops, out) {
+  for (let i = 0; i < 256; i++) {
+    const t = i / 255;
+    let s0 = stops[0], s1 = stops[1];
+    for (let s = 0; s < stops.length - 1; s++) {
+      if (t >= stops[s].t && t <= stops[s+1].t) { s0 = stops[s]; s1 = stops[s+1]; break; }
+    }
+    const f   = (s1.t === s0.t) ? 0 : (t - s0.t) / (s1.t - s0.t);
+    const idx = i * 4;
+    out[idx]   = s0.r + (s1.r - s0.r) * f;
+    out[idx+1] = s0.g + (s1.g - s0.g) * f;
+    out[idx+2] = s0.b + (s1.b - s0.b) * f;
+    out[idx+3] = s0.a + (s1.a - s0.a) * f;
+  }
+}
+
+const COLORMAP = new Uint8Array(256 * 4);
+buildColorstops([
+  { t: 0.0,  r: 0,   g: 0,   b: 0,   a: 0   },
+  { t: 0.12, r: 10,  g: 35,  b: 170, a: 140 },
+  { t: 0.4,  r: 25,  g: 85,  b: 235, a: 210 },
+  { t: 0.7,  r: 70,  g: 165, b: 255, a: 245 },
+  { t: 1.0,  r: 210, g: 238, b: 255, a: 255 },
+], COLORMAP);
+
+// ─── Particle generation — 3D sphere packing ──────────────────────────────────
+function generateNucleus(nProtons, nNeutrons, cx, cy, seed) {
+  // Seeded LCG so the same seed always produces the same layout
+  let s = (seed >>> 0) || 1;
+  const rand = () => { s = (s * 1664525 + 1013904223) & 0xffffffff; return (s >>> 0) / 0xffffffff; };
+
+  const nTotal = nProtons + nNeutrons;
+
+  const packFrac = 0.62;
+  const vol      = nTotal * (4/3 * Math.PI * PARTICLE_RADIUS ** 3) / packFrac;
+  const sphereR  = Math.cbrt(vol * 3 / (4 * Math.PI)) * 1.05;
+
+  const minDist   = PARTICLE_RADIUS * 2.08;
+  const minDistSq = minDist * minDist;
+
+  const pts = [];
+  for (let i = 0; i < nTotal; i++) {
+    let placed = false;
+    for (let attempt = 0; attempt < 8000; attempt++) {
+      const r   = sphereR * Math.cbrt(rand());
+      const th  = Math.acos(2 * rand() - 1);
+      const phi = 2 * Math.PI * rand();
+      const lx  = r * Math.sin(th) * Math.cos(phi);
+      const ly  = r * Math.sin(th) * Math.sin(phi);
+      const lz  = r * Math.cos(th);
+      let ok = true;
+      for (const p of pts) {
+        const dx = p.lx-lx, dy = p.ly-ly, dz = p.lz-lz;
+        if (dx*dx + dy*dy + dz*dz < minDistSq) { ok = false; break; }
+      }
+      if (ok) { pts.push({ lx, ly, lz }); placed = true; break; }
+    }
+    if (!placed) {
+      // Force-place at a random spot rather than stacking at center
+      const r   = sphereR * 0.6 * rand();
+      const th  = Math.acos(2 * rand() - 1);
+      const phi = 2 * Math.PI * rand();
+      pts.push({ lx: r*Math.sin(th)*Math.cos(phi), ly: r*Math.sin(th)*Math.sin(phi), lz: r*Math.cos(th) });
+    }
+  }
+
+  const adjThresh2 = (PARTICLE_RADIUS * 2.9) ** 2;
+  const adj = Array.from({ length: nTotal }, () => []);
+  for (let i = 0; i < nTotal; i++) {
+    for (let j = i+1; j < nTotal; j++) {
+      const dx = pts[i].lx-pts[j].lx, dy = pts[i].ly-pts[j].ly, dz = pts[i].lz-pts[j].lz;
+      if (dx*dx + dy*dy + dz*dz < adjThresh2) { adj[i].push(j); adj[j].push(i); }
+    }
+  }
+
+  const types         = new Array(nTotal).fill('neutron');
+  const protonNbCount = new Array(nTotal).fill(0);
+  const order         = Array.from({ length: nTotal }, (_, i) => i).sort(() => rand() - 0.5);
+  let placed = 0;
+  for (let priority = 0; priority <= 6 && placed < nProtons; priority++) {
+    for (const i of order) {
+      if (placed >= nProtons) break;
+      if (types[i] === 'proton' || protonNbCount[i] !== priority) continue;
+      types[i] = 'proton';
+      placed++;
+      for (const nb of adj[i]) protonNbCount[nb]++;
+    }
+  }
+
+  const particles = pts.map((p, i) => ({
+    x: cx + p.lx, y: cy + p.ly, z: p.lz, type: types[i], i,
+  }));
+
+  return { particles, sphereR, cx, cy };
+}
+
+// ─── Electric field heatmap ───────────────────────────────────────────────────
+// masks: [{cx, cy, r}] — soft radial clipping; alpha fades to 0 at r + PARTICLE_RADIUS*2
+function drawElectricHeatmap(particleList, sampleFrac = 0.5, sigmaScale = 1.0, masks = null, boundsExpand = 50, destCtx = ctx, _forceRender = false) {
+  const fullW = canvas.width, fullH = canvas.height;
+
+  const _hmSizeMatch = hmComposite.width === fullW && hmComposite.height === fullH;
+  if (!_forceRender && !heatmapDirty && _hmSizeMatch) {
+    destCtx.drawImage(hmComposite, 0, 0);
+    return;
+  }
+  const scale    = _quality === 'simple' ? 0.08 : _quality === 'detailed' ? 0.15 : 0.25;
+  const w        = Math.ceil(fullW * scale);
+  const h        = Math.ceil(fullH * scale);
+  const invScale = 1 / scale;
+
+  let protons = particleList.filter(p =>
+    p.type === 'proton' &&
+    p.x > -boundsExpand && p.x < fullW + boundsExpand &&
+    p.y > -boundsExpand && p.y < fullH + boundsExpand
+  );
+  if (sampleFrac < 1.0) {
+    protons = protons.filter((_, i) => i % Math.round(1 / sampleFrac) === 0);
+  }
+
+  const refEnergy = coulombStrength / (PARTICLE_RADIUS * 2);
+  const logRef    = Math.log(2);
+  const elecPairs = [];
+  for (let i = 0; i < protons.length; i++) {
+    for (let j = i+1; j < protons.length; j++) {
+      const a = protons[i], b = protons[j];
+      const dx = b.x - a.x, dy = b.y - a.y;
+      const dist = Math.sqrt(dx*dx + dy*dy);
+      if (dist < 0.01) continue;
+      const energy   = coulombStrength / dist;
+      const sigma    = Math.max(3.5, 28 / Math.sqrt(dist)) * sigmaScale;
+      const distFade = Math.exp(-dist / 350);
+      const mag      = Math.min(1, Math.log(1 + energy / refEnergy) / logRef) * distFade;
+      const cullSq   = 16 * (sigma*2) * (sigma*2);
+      elecPairs.push({ ax: a.x, ay: a.y, ux: dx/dist, uy: dy/dist, dist, sigma, mag, cullSq });
+    }
+  }
+  elecPairs.sort((a, b) => b.mag - a.mag);
+  if (elecPairs.length === 0) return;
+
+  ensureHmBuffers(w, h);
+  hmDataElec.fill(0);
+
+  // Clamp pixel loop to the bounding box of active protons — skips the large
+  // empty canvas area around the nucleus, which is typically 90%+ of pixels.
+  let bxMin = w, bxMax = 0, byMin = h, byMax = 0;
+  for (const p of protons) {
+    const sx = (p.x * scale) | 0, sy = (p.y * scale) | 0;
+    if (sx < bxMin) bxMin = sx; if (sx > bxMax) bxMax = sx;
+    if (sy < byMin) byMin = sy; if (sy > byMax) byMax = sy;
+  }
+  const bMarg = Math.ceil(50 * scale);  // max pair influence radius in world px
+  bxMin = Math.max(0, bxMin - bMarg);  bxMax = Math.min(w - 1, bxMax + bMarg);
+  byMin = Math.max(0, byMin - bMarg);  byMax = Math.min(h - 1, byMax + bMarg);
+
+  for (let py = byMin; py <= byMax; py++) {
+    const worldY = py * invScale;
+    for (let px = bxMin; px <= bxMax; px++) {
+      const worldX = px * invScale;
+      let total = 0;
+      for (let k = 0; k < elecPairs.length; k++) {
+        const p    = elecPairs[k];
+        const rx   = worldX - p.ax, ry = worldY - p.ay;
+        const para = rx*p.ux + ry*p.uy;
+        const e1   = para > 0 ? Math.min(1, para/8) : 0;
+        const e2   = para < p.dist ? Math.min(1, (p.dist-para)/8) : 0;
+        const ef   = e1 * e2;
+        if (ef <= 0) continue;
+        const perpSq = Math.max(0, rx*rx + ry*ry - para*para);
+        if (perpSq > p.cullSq) continue;
+        const t      = para / p.dist;
+        const sigmaT = p.sigma * (1 + Math.sin(Math.PI * t));
+        total += p.mag * Math.exp(-perpSq / (2*sigmaT*sigmaT)) * ef;
+        if (total >= 1/3) break;
+      }
+      if (total > 0.002) {
+        // Soft radial mask — clamp heatmap to nucleus boundary.
+        // Supports two mask types:
+        //   circle  { cx, cy, r, bleed }
+        //   capsule { type:'capsule', cx1,cy1,r1, cx2,cy2,r2, bleed }
+        //     — tapered hull between two spheres; fills the gap with no dark seam.
+        let maskAlpha = 1;
+        if (masks) {
+          maskAlpha = 0;
+          const defaultBleed = PARTICLE_RADIUS * 2;
+          for (const m of masks) {
+            if (maskAlpha >= 1) break;
+            const bleed = m.bleed !== undefined ? m.bleed : defaultBleed;
+            if (m.type === 'capsule') {
+              // Project pixel onto the segment cx1→cx2, interpolate radius
+              const sdx = m.cx2 - m.cx1, sdy = m.cy2 - m.cy1;
+              const lenSq = sdx*sdx + sdy*sdy;
+              const st = lenSq > 0
+                ? Math.max(0, Math.min(1, ((worldX-m.cx1)*sdx + (worldY-m.cy1)*sdy) / lenSq))
+                : 0;
+              const projX = m.cx1 + st*sdx, projY = m.cy1 + st*sdy;
+              const perpDist = Math.sqrt((worldX-projX)**2 + (worldY-projY)**2);
+              const capsR = m.r1 + (m.r2 - m.r1) * st;
+              if (perpDist <= capsR) { maskAlpha = 1; break; }
+              const mt = (perpDist - capsR) / bleed;
+              maskAlpha = Math.max(maskAlpha, mt < 1 ? 1 - mt : 0);
+            } else {
+              const mdx = worldX - m.cx, mdy = worldY - m.cy;
+              const mdist = Math.sqrt(mdx*mdx + mdy*mdy);
+              if (mdist <= m.r) { maskAlpha = 1; break; }
+              const mt = (mdist - m.r) / bleed;
+              maskAlpha = Math.max(maskAlpha, mt < 1 ? 1 - mt : 0);
+            }
+          }
+        }
+        if (maskAlpha > 0) {
+          const ci = Math.min(255, (total * 3.0 * 255)|0);
+          const c4 = ci * 4;
+          const di = (py * w + px) * 4;
+          hmDataElec[di]   = COLORMAP[c4];   hmDataElec[di+1] = COLORMAP[c4+1];
+          hmDataElec[di+2] = COLORMAP[c4+2];
+          hmDataElec[di+3] = (COLORMAP[c4+3] * maskAlpha + 0.5) | 0;
+        }
+      }
+    }
+  }
+
+  if (hmComposite.width !== fullW || hmComposite.height !== fullH) {
+    hmComposite.width = fullW; hmComposite.height = fullH;
+  }
+  hmcCtx.clearRect(0, 0, fullW, fullH);
+  hmcCtx.imageSmoothingEnabled = true;
+  hmcCtx.imageSmoothingQuality = 'low';
+  hmCtx.putImageData(hmImgElec, 0, 0);
+  hmcCtx.drawImage(hmCanvas, 0, 0, fullW, fullH);
+  destCtx.drawImage(hmComposite, 0, 0);
+  if (destCtx === ctx) {
+    heatmapDirty = false;
+  }
+}
+
+// ─── Cloud outline — evenly-spaced scallop circles on a ring ─────────────────
+function outerIntersection(c1, c2, R, ncx, ncy) {
+  const dx = c2.x - c1.x, dy = c2.y - c1.y;
+  const d  = Math.sqrt(dx * dx + dy * dy);
+  const h  = Math.sqrt(Math.max(0, R * R - (d / 2) * (d / 2)));
+  const mx = (c1.x + c2.x) / 2, my = (c1.y + c2.y) / 2;
+  const px = -dy / d * h,  py =  dx / d * h;
+  const p1 = { x: mx + px, y: my + py };
+  const p2 = { x: mx - px, y: my - py };
+  const d1 = (p1.x - ncx) ** 2 + (p1.y - ncy) ** 2;
+  const d2 = (p2.x - ncx) ** 2 + (p2.y - ncy) ** 2;
+  return d1 > d2 ? p1 : p2;
+}
+
+function drawCloudOutline(cx, cy, sphereR, c = ctx) {
+  const R = PARTICLE_RADIUS;
+  const N = Math.max(6, Math.round(2 * Math.PI * sphereR / (R * 1.5)));
+
+  const centers = Array.from({ length: N }, (_, k) => {
+    const a = k * 2 * Math.PI / N;
+    return { x: cx + sphereR * Math.cos(a), y: cy + sphereR * Math.sin(a) };
+  });
+
+  const arcs = centers.map((cent, k) => {
+    const prev = centers[(k - 1 + N) % N];
+    const next = centers[(k + 1)     % N];
+    const sp   = outerIntersection(cent, prev, R, cx, cy);
+    const ep   = outerIntersection(cent, next, R, cx, cy);
+    return {
+      cx: cent.x, cy: cent.y,
+      startAngle: Math.atan2(sp.y - cent.y, sp.x - cent.x),
+      endAngle:   Math.atan2(ep.y - cent.y, ep.x - cent.x),
+    };
+  });
+
+  const LIGHT = document.body.classList.contains('screenshot-mode');
+  c.save();
+  c.shadowColor = LIGHT ? 'rgba(0,0,0,0)' : 'rgba(80,160,255,0.9)';
+  c.shadowBlur  = LIGHT ? 0 : 22;
+  c.strokeStyle = LIGHT ? '#333' : 'rgba(160,215,255,1)';
+  c.lineWidth   = LIGHT ? 2.5 : 4;
+  c.beginPath();
+
+  c.moveTo(arcs[0].cx + R * Math.cos(arcs[0].startAngle),
+           arcs[0].cy + R * Math.sin(arcs[0].startAngle));
+
+  for (const arc of arcs) {
+    c.arc(arc.cx, arc.cy, R, arc.startAngle, arc.endAngle, false);
+  }
+
+  c.closePath();
+  c.stroke();
+  c.restore();
+}
+
+// ─── v11-style particle renderer — stochastic jitter + fuzzy glow ────────────
+const particleJitter = [];
+// slow=false (default): step=1.8, decay=0.72 — σ≈1.83px, autocorr ~3.6 frames (used during fission/daughters)
+// slow=true:            step=1.1, decay=0.90 — σ≈1.78px (same magnitude), autocorr ~10 frames (pre-neutron)
+function updateParticleJitter(count, strength = 1, slow = false) {
+  const step  = slow ? 1.1 : 1.8;
+  const decay = slow ? 0.90 : 0.72;
+  while (particleJitter.length < count) particleJitter.push({ x: 0, y: 0 });
+  for (let i = 0; i < count; i++) {
+    particleJitter[i].x += (Math.random() - 0.5) * step * strength;
+    particleJitter[i].y += (Math.random() - 0.5) * step * strength;
+    particleJitter[i].x *= decay;
+    particleJitter[i].y *= decay;
+  }
+}
+
+function drawParticles(particles, jitterScale = 1, radiusScale = 1, drawCtx = ctx) {
+  const dc = drawCtx;
+  const R = PARTICLE_RADIUS * radiusScale;
+  // z ascending = back to front; protons after neutrons at same depth
+  const sorted = [...particles].sort((a, b) =>
+    ((a.z || 0) - (b.z || 0)) || ((a.type === 'proton') - (b.type === 'proton'))
+  );
+  for (const p of sorted) {
+    const j  = (p.i != null && particleJitter[p.i]) ? particleJitter[p.i] : { x: 0, y: 0 };
+    const px = p.x + j.x * jitterScale, py = p.y + j.y * jitterScale;
+    const isProton = p.type === 'proton';
+    const mid  = isProton ? '#ff1a65' : '#70707f';
+    const core = isProton ? '#ff80b0' : '#b0b0c4';
+
+    if (_flatFill) {
+      if (_quality !== 'simple') {
+        // Hi-res / Detailed: layered rings matching v11 particle appearance
+        // Draw back-to-front using filled circles so rings never bleed inside
+        const cW = 4;   // colored mid-ring width (world px — scales with zoom)
+        const wW = 1;   // dark gray outline width (world px — scales with zoom)
+        const R1 = R * 1.1;
+        // Outermost: dark gray ring
+        dc.fillStyle = 'rgba(40,40,40,0.85)';
+        dc.beginPath(); dc.arc(px, py, R1, 0, Math.PI * 2); dc.fill();
+        // Middle: mid color ring (matches v11 outer gradient color)
+        dc.fillStyle = mid;
+        dc.beginPath(); dc.arc(px, py, R1 - wW, 0, Math.PI * 2); dc.fill();
+        // Inner: core (lighter) fill — matches v11 bright center
+        dc.fillStyle = core;
+        dc.beginPath(); dc.arc(px, py, R1 - wW - cW, 0, Math.PI * 2); dc.fill();
+      } else {
+        // Simple: thin white stroke over mid fill (original appearance)
+        dc.fillStyle = mid;
+        dc.beginPath(); dc.arc(px, py, R, 0, Math.PI * 2); dc.fill();
+        dc.strokeStyle = 'rgba(255,255,255,0.45)';
+        dc.lineWidth = 1;
+        dc.stroke();
+      }
+    } else {
+      // Base fill — soft edge fade
+      const baseGrad = dc.createRadialGradient(px, py, 0, px, py, R * 1.1);
+      baseGrad.addColorStop(0,    mid);
+      baseGrad.addColorStop(0.82, mid);
+      baseGrad.addColorStop(1,    'rgba(0,0,0,0)');
+      dc.fillStyle = baseGrad;
+      dc.beginPath(); dc.arc(px, py, R * 1.1, 0, Math.PI * 2); dc.fill();
+
+      // Inner glow with shadowBlur for fuzzy halo
+      const innerGlow = dc.createRadialGradient(px, py, 0, px, py, R);
+      innerGlow.addColorStop(0,   core);
+      innerGlow.addColorStop(0.5, core);
+      innerGlow.addColorStop(1,   'rgba(0,0,0,0)');
+      dc.save();
+      dc.shadowColor = core;
+      dc.shadowBlur  = 8;
+      dc.globalAlpha = 0.82;
+      dc.fillStyle = innerGlow;
+      dc.beginPath(); dc.arc(px, py, R, 0, Math.PI * 2); dc.fill();
+      dc.restore();
+      dc.globalAlpha = 1;
+    }
+
+    // + label on protons
+    if (isProton) {
+      dc.fillStyle = 'rgba(255,255,255,0.88)';
+      dc.font = `bold ${Math.max(6, Math.round(11 * radiusScale))}px Lexend, sans-serif`;
+      dc.textAlign = 'center';
+      dc.textBaseline = 'middle';
+      dc.fillText('+', px, py + 1 * radiusScale);
+    }
+  }
+}
+
+// ─── Nucleus definitions (for NEW button dropdown) ────────────────────────────
+const NUCLEUS_DEFS = {
+  u235: {
+    label: 'U-235',
+    Z: 92, N: 143,
+    animZ: 78, animN: 172,
+    displayScale: 1.0,
+    iconNP: 20, iconNN: 42, iconSeed: 0x9e3779b9, iconScale: 1.0,
+  },
+  u236: {
+    label: 'U-236',
+    Z: 92, N: 144,
+    animZ: 78, animN: 172,
+    displayScale: 1.0,
+    iconNP: 20, iconNN: 42, iconSeed: 0x9e3779b9, iconScale: 1.0,
+  },
+  ba141: {
+    label: 'Ba-141',
+    Z: 56, N: 85,
+    animZ: 56, animN: 85,
+    displayScale: 0.95,
+    iconNP: 17, iconNN: 25, iconSeed: 0x7b2e9f4a, iconScale: 0.83,
+  },
+  kr92: {
+    label: 'Kr-92',
+    Z: 36, N: 56,
+    animZ: 36, animN: 56,
+    displayScale: 0.90,
+    iconNP: 9, iconNN: 12, iconSeed: 0x4f3a1c8e, iconScale: 0.65,
+  },
+};
+let selectedNucleusKey = 'u235';
+
+// ─── Animation state ──────────────────────────────────────────────────────────
+let currentSeed = Math.floor(Math.random() * 1e9);
+let viewZoom = 0.265;
+let panOffsetX = 0, panOffsetY = 0, _panDragState = null;
+let currentTab = 'shells';
+
+// ── Action log (for bug reports) ─────────────────────────────────────────────
+const actionLog = [];
+function logAction(msg) {
+  actionLog.push(msg);
+  if (actionLog.length > 25) actionLog.shift();
+}
+
+// Piecewise zoom mapping: slider -1..0..1, default at centre (v=0)
+// v=-1 → 0.83 (20% wider),  v=0 → 1.0,  v=1 → 2.0
+// v=-1 → 0.1,  v=0 → 0.35,  v=1 → 2.0
+function zoomFromSlider(v) {
+  // Zoom-out half: exponential so mid-slider feels natural across a 100× range
+  // v=-1 → 0.006 (whole lead atom fits), v=0 → 0.55 (2 shells fill screen)
+  if (v <= 0) return 0.55 * Math.pow(0.006 / 0.55, -v);
+  // Zoom-in half: linear up to 6.0
+  return 0.55 + v * 4.85;
+}
+
+let showParticles = true;
+let currentScrubFrac = 0;
+let maxRevealedFrac  = 0;   // high-water mark — graph line never erases back
+let egZoomStart = 0, egZoomEnd = 1;
+let egDragStartPx = null, egDragCurPx = null;
+let animParent = null;
+let _imgParent = null;
+
+// ─── Electron physics ─────────────────────────────────────────────────────────
+// Each electron: { x, y, vx, vy, trail: [{x,y}] }
+let electrons = [];
+let eK = 140000, eRepulse = 50000, eDamp = 1, eMinR = 80, eMaxR = 90, eDt = 1.45;
+let eTrailLen = 105;
+const SHELL_COLORS = ['#ff4488', '#00ddff', '#ff8800', '#88ff00'];
+let shellK          = [140000, 11000, 91000, 140000]; // per-shell nuclear k
+let shellWallMult   = [1.0, 0.35, 0.95, 1.0];         // per-shell wall engagement multiplier
+let shellWallK      = [15, 155, 815, 15];              // per-shell wall stiffness
+let shellVMax       = [0.5, 0.25, 0.6, 0.5];          // per-shell V_MAX coefficient (× shellRadius)
+let shellRadialDamp = [0, 0, 0, 0];                    // fraction of radial velocity removed per frame (0 = off, 1 = fully tangential)
+let shellMinR       = [80, 80, 170, 80];               // per-shell inner hard floor clearance beyond nucleus surface
+
+// Shell definitions: capacity (max electrons), maxR (outer soft-wall radius)
+// Shell 2 can hold 18e via d-fill (transition metals); see getShellForNewElectron
+const SHELLS = [
+  { capacity:  2, maxR:    220 },  // shell 0 (K)
+  { capacity:  8, maxR:    440 },  // shell 1 (L)
+  { capacity:  8, maxR:    880 },  // shell 2 (M)
+  { capacity: 18, maxR:   1760 },  // shell 3 (N)
+  { capacity: 18, maxR:   3520 },  // shell 4 (O)
+  { capacity: 32, maxR:   7040 },  // shell 5 (P)
+  { capacity: 32, maxR:  14080 },  // shell 6 (Q)
+  { capacity: 32, maxR:  28160 },
+  { capacity: 32, maxR:  56320 },
+  { capacity: 32, maxR: 112640 },
+  { capacity: 32, maxR: 225280 },
+  { capacity: 32, maxR: 450560 },
+];
+const E_MAX_TOTAL = SHELLS.reduce((s, sh) => s + sh.capacity, 0); // 278
+
+let electronDotR = 9.0;  // electron dot radius (shells mode); 0 = hidden
+
+// ─── Orbit 3D simulation ──────────────────────────────────────────────────────
+const ORB3D_N = 4;  // max shells supported
+let orb3dRadScale = 1.0;  // orbit-only view scale
+let orb3dDotR = 10;       // dot radius at trail head in orbit (0 = hidden)
+let orb3dAZ = 0.60;       // azimuth angle (horizontal rotation)
+let orb3dEL = 0.42;       // elevation angle (vertical tilt)
+let orb3dPaused = false;  // true = electrons frozen; drag rotates view
+let orb3dDragState = null; // { lastX, lastY, moved } during active drag
+
+// Per-shell group state — each shell has independent pair/loner groups
+let orb3dShellCounts = new Array(ORB3D_N).fill(0);  // total electrons per shell (for display)
+let orb3dShellGroups = Array.from({length: ORB3D_N}, () => []);
+// Each group: { count:1|2, phase, wanderPh, radPh, axisPhi, trails:[[],[]] }
+
+// Per-shell tunable parameters
+let orbShellSpeed    = [8.0, 7.0, 6.0, 5.0];
+let orbShellRadAmp   = [0.20, 0.20, 0.10, 0.05];
+let orbShellWander   = [45,   50,   55,   60];
+let orbShellTrailLen = [140,  140,  140,  140];
+
+function _o3Cross(a, b) {
+  return [a[1]*b[2]-a[2]*b[1], a[2]*b[0]-a[0]*b[2], a[0]*b[1]-a[1]*b[0]];
+}
+function _o3Norm(v) {
+  const m = Math.sqrt(v[0]*v[0]+v[1]*v[1]+v[2]*v[2]);
+  return m < 1e-10 ? [1,0,0] : [v[0]/m, v[1]/m, v[2]/m];
+}
+function _o3RandAxis() {
+  // Uniformly distributed random unit vector on the sphere
+  const th = Math.acos(2 * Math.random() - 1);
+  const ph = Math.random() * Math.PI * 2;
+  return [Math.sin(th)*Math.cos(ph), Math.sin(th)*Math.sin(ph), Math.cos(th)];
+}
+function _o3Precess(ax, rot, angle) {
+  // Rodrigues: rotate ax around rot by angle
+  const [rx,ry,rz] = rot, [vx,vy,vz] = ax;
+  const dot = rx*vx + ry*vy + rz*vz;
+  const c = Math.cos(angle), s = Math.sin(angle);
+  return _o3Norm([
+    vx*c + (ry*vz-rz*vy)*s + rx*dot*(1-c),
+    vy*c + (rz*vx-rx*vz)*s + ry*dot*(1-c),
+    vz*c + (rx*vy-ry*vx)*s + rz*dot*(1-c),
+  ]);
+}
+
+function stepOrbit3D() {
+  const occupied = [...new Set(electrons.map(e => e.shell))];
+  for (const s of occupied) {
+    const sp      = orbShellSpeed[s]    ?? 8;
+    const radAmp  = orbShellRadAmp[s]   ?? 0.2;
+    const wandDeg = orbShellWander[s]   ?? 45;
+    const maxLen  = orbShellTrailLen[s] ?? 140;
+    const phStep  = 0.025 * sp;
+    for (const grp of orb3dShellGroups[s]) {
+      grp.radPh += 0.018 * sp;
+      const r = 1 + radAmp * Math.sin(grp.radPh);
+      const precSpeed = 0.003 * sp * (wandDeg / 45);
+      grp.ax = _o3Precess(grp.ax, grp.rot, precSpeed);
+      grp.e1 = _o3Precess(grp.e1, grp.rot, precSpeed);
+      const e1 = grp.e1;
+      const e2 = _o3Cross(grp.ax, e1);
+      grp.phase += phStep;
+      for (let ei = 0; ei < grp.count; ei++) {
+        const ph = grp.phase + (grp.phOff?.[ei] ?? ei * Math.PI);
+        const c = Math.cos(ph), ss = Math.sin(ph);
+        const trail = grp.trails[ei];
+        trail.push([r*(c*e1[0]+ss*e2[0]), r*(c*e1[1]+ss*e2[1]), r*(c*e1[2]+ss*e2[2])]);
+        if (trail.length > maxLen) trail.splice(0, trail.length - maxLen);
+      }
+    }
+  }
+}
+
+function drawOrbit3D(ctx) {
+  if (!animParent || !electrons.length) return;
+  const W = canvas.width, H = canvas.height;
+  const tbH = document.getElementById('toolbar').offsetHeight;
+  const _sbH = document.getElementById('scrubBar').classList.contains('visible')
+    ? document.getElementById('scrubBar').offsetHeight : 0;
+  const cy = (tbH + H - _sbH) / 2 + panOffsetY;
+  const cx = W * 0.5 + panOffsetX;
+
+  // Nucleus — same camera transform as Shells/Trails so it appears at (cx, cy)
+  ctx.save();
+  ctx.translate(cx, cy);
+  ctx.scale(viewZoom, viewZoom);
+  ctx.translate(-W / 2, -H / 2);
+  if (showParticles) drawParticles(animParent.particles, 1);
+  else drawCloudOutline(animParent.cx, animParent.cy, animParent.sphereR);
+  ctx.restore();
+
+  // 3D projection — orthographic, screen-space coords centered at (cx, cy)
+  const AZ = orb3dAZ, EL = orb3dEL;
+  const cosAZ = Math.cos(AZ), sinAZ = Math.sin(AZ), cosEL = Math.cos(EL), sinEL = Math.sin(EL);
+  function proj3D(nx, ny, nz, r3d) {
+    const x = nx*r3d, y = ny*r3d, z = nz*r3d;
+    const rx = x*cosAZ + z*sinAZ, ry = y, rz = -x*sinAZ + z*cosAZ;
+    return [cx + rx, cy - (ry*cosEL - rz*sinEL)];
+  }
+
+  const occupied = [...new Set(electrons.map(e => e.shell))].sort((a,b) => a-b);
+
+  const showAR = document.getElementById('showElectric').checked;
+
+  // 3D grid — cyberpunk neon
+  if (showGrid && occupied.length) {
+    const _gScale = shellBaseR * orb3dRadScale * viewZoom;
+    // Extend grid to screen edges: half-diagonal ÷ _gScale gives required pm reach
+    const _step   = 20;  // pm between grid lines
+    const _extPm  = Math.ceil(Math.hypot(W, H) / 2 / _gScale / _step) * _step;
+    const _t  = performance.now();
+    // Single slow pulse — high floor keeps it bright most of the time
+    const _pulse = 0.75 + 0.25 * Math.sin(_t / 1100);
+    const [_gr, _gg, _gb] = _themeGridRgb;
+
+    ctx.save();
+
+    // ── Floor grid lines — single batched path (cheap) ──
+    ctx.strokeStyle = `rgba(${_gr},${_gg},${_gb},${0.12 + 0.06 * _pulse})`;
+    ctx.lineWidth   = 1.4;
+    ctx.shadowColor = `rgb(${_gr},${_gg},${_gb})`;
+    ctx.shadowBlur  = 2 + 2 * _pulse;
+    ctx.beginPath();
+    for (let i = -_extPm; i <= _extPm; i += _step) {
+      if (i === 0) continue;
+      const [gx0,gy0] = proj3D(i, 0, -_extPm, _gScale);
+      const [gx1,gy1] = proj3D(i, 0,  _extPm, _gScale);
+      ctx.moveTo(gx0,gy0); ctx.lineTo(gx1,gy1);
+      const [gx2,gy2] = proj3D(-_extPm, 0, i, _gScale);
+      const [gx3,gy3] = proj3D( _extPm, 0, i, _gScale);
+      ctx.moveTo(gx2,gy2); ctx.lineTo(gx3,gy3);
+    }
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+
+    // ── Axes — bloom pass then crisp pass ──
+    const axes = [
+      [[-_extPm,0,0],[_extPm,0,0]],
+      [[0,0,-_extPm],[0,0,_extPm]],
+      [[0,-_extPm,0],[0,_extPm,0]],
+    ];
+    ctx.lineWidth   = 5;
+    ctx.shadowColor = `rgb(${_gr},${_gg},${_gb})`;
+    ctx.shadowBlur  = 10 + 6 * _pulse;
+    ctx.strokeStyle = `rgba(${_gr},${_gg},${_gb},${0.10 + 0.08 * _pulse})`;
+    ctx.beginPath();
+    for (const [[ax,ay,az],[bx,by,bz]] of axes) {
+      const [sx0,sy0] = proj3D(ax,ay,az, _gScale);
+      const [sx1,sy1] = proj3D(bx,by,bz, _gScale);
+      ctx.moveTo(sx0,sy0); ctx.lineTo(sx1,sy1);
+    }
+    ctx.stroke();
+
+    ctx.lineWidth   = 1.5;
+    ctx.shadowBlur  = 4 + 4 * _pulse;
+    ctx.strokeStyle = `rgba(${_gr},${_gg},${_gb},${0.70 + 0.25 * _pulse})`;
+    ctx.beginPath();
+    for (const [[ax,ay,az],[bx,by,bz]] of axes) {
+      const [sx0,sy0] = proj3D(ax,ay,az, _gScale);
+      const [sx1,sy1] = proj3D(bx,by,bz, _gScale);
+      ctx.moveTo(sx0,sy0); ctx.lineTo(sx1,sy1);
+    }
+    ctx.stroke();
+
+    ctx.shadowBlur = 0;
+    ctx.restore();
+  }
+
+  // Shell reference rings
+  if (showAR) {
+    ctx.lineWidth = 1;
+    for (const s of occupied) {
+      const r3d = getShellRadius(s) * orb3dRadScale * viewZoom;
+      ctx.strokeStyle = SHELL_COLORS[s % SHELL_COLORS.length] + '28';
+      ctx.beginPath();
+      for (let a = 0; a <= 360; a += 5) {
+        const rad = a * Math.PI / 180;
+        const [sx,sy] = proj3D(Math.cos(rad), 0, Math.sin(rad), r3d);
+        a === 0 ? ctx.moveTo(sx,sy) : ctx.lineTo(sx,sy);
+      }
+      ctx.stroke();
+      ctx.beginPath();
+      for (let a = -90; a <= 90; a += 4) {
+        const rad = a * Math.PI / 180;
+        const [sx,sy] = proj3D(Math.cos(rad), Math.sin(rad), 0, r3d);
+        a === -90 ? ctx.moveTo(sx,sy) : ctx.lineTo(sx,sy);
+      }
+      ctx.stroke();
+    }
+  }
+
+  // Trails
+  const _visHH = cy - tbH;  // visible vertical half-height from orbit center
+  ctx.lineWidth = 1.5;
+  for (const s of occupied) {
+    const r3d = getShellRadius(s) * orb3dRadScale * viewZoom;
+    const _shellOffScreen = r3d > _visHH * 1.2;
+    const col = SHELL_COLORS[s % SHELL_COLORS.length];
+    for (const grp of orb3dShellGroups[s]) {
+      for (let ei = 0; ei < grp.count; ei++) {
+        const trail = grp.trails[ei];
+        const n = trail.length;
+        if (n >= 2) {
+          const proj = trail.map(p => proj3D(p[0], p[1], p[2], r3d));
+          ctx.strokeStyle = col;
+          const BUCKETS = 16;
+          for (let b = 0; b < BUCKETS; b++) {
+            const i0 = Math.round(b / BUCKETS * (n - 1));
+            const i1 = Math.round((b + 1) / BUCKETS * (n - 1));
+            if (i1 <= i0) continue;
+            ctx.globalAlpha = ((b + 1) / BUCKETS) * 0.75;
+            ctx.beginPath();
+            ctx.moveTo(proj[i0][0], proj[i0][1]);
+            if (i1 > i0 + 1) {
+              ctx.lineTo((proj[i0][0] + proj[i0+1][0]) / 2, (proj[i0][1] + proj[i0+1][1]) / 2);
+              for (let i = i0 + 1; i < i1; i++)
+                ctx.quadraticCurveTo(proj[i][0], proj[i][1], (proj[i][0] + proj[i+1][0]) / 2, (proj[i][1] + proj[i+1][1]) / 2);
+            }
+            ctx.lineTo(proj[i1][0], proj[i1][1]);
+            ctx.stroke();
+          }
+        }
+        ctx.globalAlpha = 1;
+        // Arrow at trail head pointing in direction of travel
+        if (orb3dDotR > 0 && n > 0 && !_shellOffScreen) {
+          const tip = trail[n - 1];
+          const [tx, ty] = proj3D(tip[0], tip[1], tip[2], r3d);
+          const prev = trail[Math.max(0, n - 3)];
+          const [px2, py2] = proj3D(prev[0], prev[1], prev[2], r3d);
+          let dx = tx - px2, dy = ty - py2;
+          const dl = Math.sqrt(dx * dx + dy * dy);
+          if (dl > 0.5) { dx /= dl; dy /= dl; } else { dx = 1; dy = 0; }
+          const _as = s === occupied[0] ? 1.3 : 1.0;
+          const W = Math.min(orb3dDotR * r3d / 200 * 0.65 * _as, 7.5), L = W / 0.65, perpx = -dy, perpy = dx;
+          ctx.fillStyle = col;
+          ctx.beginPath();
+          ctx.moveTo(tx + dx * L,           ty + dy * L);
+          ctx.lineTo(tx - dx * L + perpx * W, ty - dy * L + perpy * W);
+          ctx.lineTo(tx - dx * L * 0.25,    ty - dy * L * 0.25);
+          ctx.lineTo(tx - dx * L - perpx * W, ty - dy * L - perpy * W);
+          ctx.closePath();
+          ctx.fill();
+        }
+      }
+    }
+  }
+  ctx.globalAlpha = 1;
+
+  // Atomic radius label — same flat horizontal line as Shells tab
+  if (showAR && occupied.length) {
+    const outerShell = Math.max(...occupied);
+    const outerR = getShellRadius(outerShell) * orb3dRadScale * viewZoom;
+    const arPm = Math.round(getShellRadius(outerShell) / shellBaseR);
+    const arSuffix = ((customZ === 9 && electrons.length === 10) || (radiusMode === 'vdw' && (customZ === 10 || customZ === 18 || customZ === 36))) ? '*' : '';
+    ctx.save();
+    ctx.strokeStyle = 'rgba(100,180,255,0.55)';
+    ctx.lineWidth = 1.5;
+    ctx.setLineDash([6, 6]);
+    ctx.beginPath();
+    ctx.moveTo(cx, cy);
+    ctx.lineTo(cx + outerR, cy);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle = 'rgba(140,200,255,0.9)';
+    ctx.font = '13px Lexend, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText(`r = ${arPm}${arSuffix} pm`, cx + outerR / 2, cy - 10);
+    ctx.restore();
+  }
+
+  // Paused indicator
+  if (orb3dPaused) {
+    ctx.save();
+    ctx.font = '12px Lexend, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillStyle = 'rgba(180,220,255,0.5)';
+    ctx.fillText('drag to rotate  ·  click to resume', W / 2, tbH + 22);
+    ctx.restore();
+  }
+
+  // Not-to-scale notice
+  ctx.save();
+  ctx.font = '12px Lexend, sans-serif';
+  ctx.fillStyle = 'rgba(255,255,255,0.18)';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'bottom';
+  ctx.fillText('Distances and sizes are not shown to scale.', cx, H - 10);
+  ctx.restore();
+}
+
+// ─── Orbit 3D per-shell dev sliders ──────────────────────────────────────────
+const ORB3D_SHELL_SLIDER_DEFS = [
+  { key:'speed',  label:'speed',    min:0.5, max:12,  step:0.1,  fmt:v=>v.toFixed(1),            get:s=>orbShellSpeed[s],    set:(s,v)=>{ orbShellSpeed[s]=v; } },
+  { key:'rad',    label:'radial ±', min:0,   max:0.5, step:0.01, fmt:v=>Math.round(v*100)+'%',  get:s=>orbShellRadAmp[s],   set:(s,v)=>{ orbShellRadAmp[s]=v; } },
+  { key:'wander', label:'wander°',  min:0,   max:89,  step:1,    fmt:v=>Math.round(v)+'°',       get:s=>orbShellWander[s],   set:(s,v)=>{ orbShellWander[s]=v; } },
+  { key:'trail',  label:'trail',    min:20,  max:2000,step:20,   fmt:v=>Math.round(v)+'',        get:s=>orbShellTrailLen[s], set:(s,v)=>{ orbShellTrailLen[s]=v; for(const grp of orb3dShellGroups[s]) for(let ei=0;ei<grp.count;ei++){const t=grp.trails[ei];if(t.length>v)t.splice(0,t.length-v);} } },
+];
+
+function _clearOrb3dShell(s) {
+  orb3dShellCounts[s] = 0;
+  orb3dShellGroups[s] = [];
+}
+
+function _growOrb3dShell(s, newCount) {
+  const groups = orb3dShellGroups[s];
+  while (orb3dShellCounts[s] < newCount) {
+    const lastIdx = groups.length - 1;
+    const lastGrp = groups[lastIdx];
+    // First two groups are always independent s-orbital loners — never pair them
+    const canPair = lastGrp && lastGrp.count === 1 && lastIdx >= 2;
+    if (canPair) {
+      lastGrp.count = 2;
+      lastGrp.phOff.push(Math.random() * Math.PI * 2);
+      lastGrp.trails.push([]);
+    } else {
+      { const ax = _o3RandAxis(), ref = Math.abs(ax[0]) < 0.9 ? [1,0,0] : [0,1,0];
+        groups.push({
+          count: 1,
+          phase: Math.random() * Math.PI * 2,
+          phOff: [0],
+          radPh: Math.random() * Math.PI * 2,
+          ax, e1: _o3Norm(_o3Cross(ax, ref)), rot: _o3RandAxis(),
+          trails: [[]],
+        }); }
+    }
+    orb3dShellCounts[s]++;
+  }
+}
+
+function _shrinkOrb3dShell(s, newCount) {
+  const groups = orb3dShellGroups[s];
+  while (orb3dShellCounts[s] > newCount) {
+    const lastGrp = groups[groups.length - 1];
+    if (lastGrp.count === 2) {
+      // Demote pair to loner — keep the first trail
+      lastGrp.count = 1;
+      lastGrp.trails.pop();
+    } else {
+      // Remove the loner group entirely
+      groups.pop();
+    }
+    orb3dShellCounts[s]--;
+  }
+}
+
+function syncOrb3dShellSliders() {
+  const container = document.getElementById('orbit3dDevSliders');
+  if (!container) return;
+  container.innerHTML = '';
+
+  // Recount electrons per shell and update orbit state incrementally
+  const countPerShell = {};
+  for (const e of electrons) countPerShell[e.shell] = (countPerShell[e.shell] || 0) + 1;
+  for (let s = 0; s < ORB3D_N; s++) {
+    const newCount = countPerShell[s] || 0;
+    const oldCount = orb3dShellCounts[s];
+    if (newCount === oldCount) continue;
+    if (newCount === 0)          _clearOrb3dShell(s);
+    else if (newCount > oldCount) _growOrb3dShell(s, newCount);
+    else                          _shrinkOrb3dShell(s, newCount);
+  }
+
+  // Global controls group
+  const globalGrp = document.createElement('div');
+  globalGrp.style.cssText = 'display:flex;flex-direction:column;gap:4px;padding-right:12px;border-right:1px solid rgba(100,140,255,0.2)';
+
+  function _mkRow(lbl, inp, valSpan) {
+    const row = document.createElement('div'); row.className = 'dev-row';
+    row.append(lbl, inp, valSpan); return row;
+  }
+  function _mkSlider(min, max, step, val, onChange) {
+    const inp = document.createElement('input');
+    inp.type='range'; inp.min=min; inp.max=max; inp.step=step; inp.value=val;
+    inp.addEventListener('input', ()=>onChange(parseFloat(inp.value)));
+    return inp;
+  }
+
+  // radius scale
+  const radVal = document.createElement('span'); radVal.className='dev-val'; radVal.textContent=orb3dRadScale.toFixed(2)+'×';
+  const radLbl = document.createElement('label'); radLbl.textContent='orbit r';
+  const radIn = _mkSlider(0.2, 2.0, 0.05, orb3dRadScale, v=>{ orb3dRadScale=v; radVal.textContent=v.toFixed(2)+'×'; });
+  globalGrp.appendChild(_mkRow(radLbl, radIn, radVal));
+
+  // baseR (shared with shells/trails)
+  const brVal = document.createElement('span'); brVal.className='dev-val'; brVal.textContent=shellBaseR;
+  const brLbl = document.createElement('label'); brLbl.textContent='px/pm';
+  const brIn = _mkSlider(2, 50, 1, shellBaseR, v=>{
+    shellBaseR=v; brVal.textContent=v;
+    const s2 = document.getElementById('slBaseR'); if(s2){s2.value=v;}
+    const s2v = document.getElementById('slBaseRVal'); if(s2v){s2v.textContent=v;}
+  });
+  globalGrp.appendChild(_mkRow(brLbl, brIn, brVal));
+
+  // dot size (orbit trail head)
+  const dotVal = document.createElement('span'); dotVal.className='dev-val'; dotVal.textContent=orb3dDotR.toFixed(1);
+  const dotLbl = document.createElement('label'); dotLbl.textContent='dot size';
+  const dotIn = _mkSlider(0, 12, 0.5, orb3dDotR, v=>{ orb3dDotR=v; dotVal.textContent=v.toFixed(1); });
+  globalGrp.appendChild(_mkRow(dotLbl, dotIn, dotVal));
+
+  container.appendChild(globalGrp);
+
+  // Per-shell groups
+  const occupied = [...new Set(electrons.map(e => e.shell))].sort((a,b)=>a-b);
+  for (const s of occupied) {
+    const col = SHELL_COLORS[s % SHELL_COLORS.length];
+    const grp = document.createElement('div');
+    grp.style.cssText = `display:flex;flex-direction:column;gap:4px;border-left:2px solid ${col}55;padding-left:8px`;
+    const title = document.createElement('div');
+    title.style.cssText = `font-size:10px;color:${col};font-weight:600;letter-spacing:0.05em;opacity:0.85`;
+    title.textContent = `Shell ${s}  (${orb3dShellCounts[s]}e)`;
+    grp.appendChild(title);
+    for (const def of ORB3D_SHELL_SLIDER_DEFS) {
+      const row = document.createElement('div'); row.className = 'dev-row';
+      const lbl = document.createElement('label'); lbl.textContent = def.label;
+      const inp = document.createElement('input');
+      inp.type='range'; inp.min=def.min; inp.max=def.max; inp.step=def.step; inp.value=def.get(s);
+      const val = document.createElement('span'); val.className='dev-val'; val.textContent=def.fmt(def.get(s));
+      inp.addEventListener('input', ()=>{ const v=parseFloat(inp.value); def.set(s,v); val.textContent=def.fmt(v); });
+      row.append(lbl, inp, val);
+      grp.appendChild(row);
+    }
+    container.appendChild(grp);
+  }
+}
+
+function getShellForNewElectron() {
+  const n = electrons.length;
+  if (n < 2)  return 0;  // shell 0: 1s (2e)
+  if (n < 10) return 1;  // shell 1: 2s2p (8e)
+  if (n < 18) return 2;  // shell 2: 3s3p (8e, Ar core)
+  if (n < 20) return 3;  // shell 3: 4s (K, Ca — 2e before d-fill)
+  if (n < 30) return 2;  // shell 2: 3d fill (transition metals — up to 18e total)
+  return 3;              // shell 3: 4p (Ga–Kr — resumes from 3e)
+}
+
+// Offscreen glow image — built once, reused for all electrons
+const E_GLOW_R = 10;
+let _eGlowImg = null;
+function _buildElectronGlow() {
+  const d = E_GLOW_R * 2 + 1;
+  const oc = document.createElement('canvas');
+  oc.width = oc.height = d;
+  const oc2 = oc.getContext('2d');
+  const g = oc2.createRadialGradient(E_GLOW_R, E_GLOW_R, 0, E_GLOW_R, E_GLOW_R, E_GLOW_R);
+  g.addColorStop(0,    'rgba(255,255,220,1)');
+  g.addColorStop(0.13, 'rgba(238,255,0,1)');
+  g.addColorStop(0.40, 'rgba(238,255,0,0.6)');
+  g.addColorStop(0.70, 'rgba(200,230,0,0.18)');
+  g.addColorStop(1,    'rgba(180,220,0,0)');
+  oc2.fillStyle = g;
+  oc2.fillRect(0, 0, d, d);
+  _eGlowImg = oc;
+}
+
+function removeElectron() {
+  if (electrons.length === 0) return;
+  electrons.pop();
+  updateElectronCount();
+}
+
+function addElectron() {
+  if (!animParent) return;
+  if (electrons.length >= E_MAX_TOTAL) return;
+  if (!_eGlowImg) _buildElectronGlow();
+  const cx = animParent.cx, cy = animParent.cy;
+  const shell = getShellForNewElectron();
+  const shellR = getShellRadius(shell);
+  const dist = shellR; // place at shell ring radius to match shells-mode visual
+  const angle = (electrons.length * (2 * Math.PI / 3) + Math.random() * 0.4) % (Math.PI * 2);
+  const vCirc = Math.sqrt(eK / dist) * eDt * 30;
+  electrons.push({
+    x: cx + Math.cos(angle) * dist,
+    y: cy + Math.sin(angle) * dist,
+    vx: -Math.sin(angle) * vCirc,
+    vy:  Math.cos(angle) * vCirc,
+    trail: [],
+    shell,
+    angle,          // used by Shells tab
+    dAngle: 0.018,  // start with a base orbital drift
+    radialOffset: 0, // radial offset from shell center (world units)
+    dRadial: 0,
+  });
+  updateElectronCount();
+}
+
+function clearElectrons() {
+  electrons = [];
+  updateElectronCount();
+}
+
+function _rightmostInShell(s) {
+  let best = -1, bestCos = -Infinity;
+  for (let i = 0; i < electrons.length; i++) {
+    if (electrons[i].shell !== s) continue;
+    const c = Math.cos(electrons[i].angle);
+    if (c > bestCos) { bestCos = c; best = i; }
+  }
+  return best;
+}
+
+function _closestInShell(s, refAngle) {
+  let best = -1, bestDiff = Infinity;
+  for (let i = 0; i < electrons.length; i++) {
+    if (electrons[i].shell !== s) continue;
+    let diff = Math.abs(((electrons[i].angle - refAngle) % (2 * Math.PI) + 2 * Math.PI) % (2 * Math.PI));
+    if (diff > Math.PI) diff = 2 * Math.PI - diff;
+    if (diff < bestDiff) { bestDiff = diff; best = i; }
+  }
+  return best >= 0 ? best : _rightmostInShell(s);
+}
+
+function autoSelectOuterShell(prevSr, refAngle) {
+  if (!electrons.length) return;
+  const outer = Math.max(...electrons.map(e => e.shell));
+  if (fvShellMode && outer !== selectedShell) {
+    const from = prevSr ?? _fvEffectiveSr;
+    _fvPrevSr    = from > 0 ? from : getShellRadius(outer) * 0.15;
+    _fvZoomStart = performance.now();
+    selectedShell = outer;
+  }
+  selectedElectronIdx = refAngle != null
+    ? _closestInShell(outer, refAngle)
+    : _rightmostInShell(outer);
+}
+
+// Common ionic forms: [label, absolute electron count (null = neutral = Z)]
+const COMMON_FORMS = {
+   1: [['neutral', null]],
+   2: [['neutral', null]],
+   3: [['neutral', null], ['salt',  2]],   // Li / Li⁺
+   4: [['neutral', null], ['salt',  2]],   // Be / Be²⁺
+   9: [['neutral', null], ['salt', 10]],   // F  / F⁻
+  10: [['neutral', null]],
+  11: [['neutral', null], ['salt', 10]],   // Na / Na⁺
+  12: [['neutral', null], ['salt', 10]],   // Mg / Mg²⁺
+  14: [['neutral', null], ['salt', 10]],   // Si / Si⁴⁺
+  17: [['neutral', null], ['salt', 18]],   // Cl / Cl⁻
+  18: [['neutral', null]],
+  19: [['neutral', null], ['salt', 18]],   // K  / K⁺
+  20: [['neutral', null], ['salt', 18]],   // Ca / Ca²⁺
+  26: [['neutral', null], ['salt', 24]],   // Fe / Fe²⁺
+  29: [['neutral', null], ['salt', 27]],   // Cu / Cu²⁺
+  30: [['neutral', null], ['salt', 28]],   // Zn / Zn²⁺
+  32: [['neutral', null], ['salt', 28]],   // Ge / Ge⁴⁺
+  35: [['neutral', null], ['salt', 36]],   // Br / Br⁻
+  36: [['neutral', null]],
+};
+
+function syncNeutralElectrons() {
+  const target = Math.min(customZ, E_MAX_TOTAL);
+  while (electrons.length < target) addElectron();
+  while (electrons.length > target) electrons.pop();
+  updateElectronCount();
+}
+
+function setElectronCount(n) {
+  const target = Math.min(n, E_MAX_TOTAL);
+  while (electrons.length < target) addElectron();
+  while (electrons.length > target) electrons.pop();
+  updateElectronCount();
+}
+
+function syncFormButtons() {
+  const box = document.getElementById('formBtnsBox');
+  if (!box) return;
+  box.innerHTML = '';
+  const forms = COMMON_FORMS[customZ] || [['neutral', null]];
+  for (const [label, eCount] of forms) {
+    const target = eCount ?? customZ;
+    const btn = document.createElement('button');
+    btn.className = 'form-btn';
+    btn.textContent = label;
+    btn.dataset.ecount = target;
+    btn.addEventListener('click', () => {
+      const _prevAngle = (selectedElectronIdx >= 0 && selectedElectronIdx < electrons.length)
+        ? electrons[selectedElectronIdx].angle : null;
+      setElectronCount(target);
+      syncFormBtnActive();
+      syncShellDevSliders();
+      autoSelectOuterShell(undefined, _prevAngle);
+      draw();
+    });
+    box.appendChild(btn);
+  }
+  syncFormBtnActive();
+}
+
+function syncFormBtnActive() {
+  const box = document.getElementById('formBtnsBox');
+  if (!box) return;
+  const n = electrons.length;
+  box.querySelectorAll('.form-btn').forEach(btn => {
+    btn.classList.toggle('active', +btn.dataset.ecount === n);
+  });
+}
+
+function updateElectronCount() {
+  const el = document.getElementById('electronCount');
+  if (el) el.textContent = electrons.length;
+  updateParticleCounters();
+  syncFormBtnActive();
+}
+
+function stepElectrons() {
+  if (!animParent || !electrons.length) return;
+  const cx = animParent.cx, cy = animParent.cy;
+  for (const e of electrons) {
+    const shellMaxR = getShellRadius(e.shell);
+    const V_MAX = shellMaxR * (shellVMax[e.shell] ?? 0.5);
+    const minR = e.shell === 0
+      ? animParent.sphereR + (shellMinR[e.shell] ?? eMinR)
+      : getShellRadius(e.shell - 1);
+    const dx = cx - e.x, dy = cy - e.y;
+    let dist = Math.sqrt(dx * dx + dy * dy);
+    if (dist < minR) dist = minR;
+    const F = (shellK[e.shell] ?? eK) / (dist * dist);
+    const ax = F * dx / dist;
+    const ay = F * dy / dist;
+    e.vx += ax * eDt;
+    e.vy += ay * eDt;
+    e.vx *= eDamp;
+    e.vy *= eDamp;
+    const spd = Math.sqrt(e.vx * e.vx + e.vy * e.vy);
+    if (spd > V_MAX) { const s = V_MAX / spd; e.vx *= s; e.vy *= s; }
+    e.x += e.vx * eDt;
+    e.y += e.vy * eDt;
+    const ndx = e.x - cx, ndy = e.y - cy;
+    const nd = Math.sqrt(ndx * ndx + ndy * ndy);
+    if (nd < minR) {
+      const inv = minR / nd;
+      e.x = cx + ndx * inv;
+      e.y = cy + ndy * inv;
+      const dot = e.vx * ndx / nd + e.vy * ndy / nd;
+      if (dot < 0) { e.vx -= 2 * dot * ndx / nd; e.vy -= 2 * dot * ndy / nd; }
+    }
+    // Soft walls: shell 0 has inner+outer with quadratic ramp; outer shells outer-only with linear ramp
+    const innerWall = e.shell === 0 ? minR : getShellRadius(e.shell - 1);
+    const nextShellR = e.shell + 1 < SHELLS.length ? getShellRadius(e.shell + 1) : shellMaxR * 1.5;
+    const outerZone = e.shell === 0 ? (nextShellR - shellMaxR) * 0.5 : shellMaxR * 0.2;
+    const wallStart = shellMaxR * (shellWallMult[e.shell] ?? 1.0);
+    if (nd > wallStart) {
+      const t = Math.min((nd - wallStart) / outerZone, 1);
+      const ramp = e.shell === 0 ? t * t : t;
+      const wallAcc = ((shellK[e.shell] ?? eK) / (shellMaxR * shellMaxR)) * ramp * (shellWallK[e.shell] ?? 15);
+      e.vx -= wallAcc * (ndx / nd) * eDt;
+      e.vy -= wallAcc * (ndy / nd) * eDt;
+    }
+    if (e.shell === 0 && nd < shellMaxR && nd > innerWall) {
+      const gap = shellMaxR - innerWall;
+      const t = Math.min((shellMaxR - nd) / (gap * 0.5), 1);
+      const wallAcc = ((shellK[0] ?? eK) / (shellMaxR * shellMaxR)) * t * t * 8;
+      e.vx += wallAcc * (ndx / nd) * eDt;
+      e.vy += wallAcc * (ndy / nd) * eDt;
+    }
+    const rd = shellRadialDamp[e.shell] ?? 0;
+    if (rd > 0 && nd > 0) {
+      const vr =  e.vx * ndx / nd + e.vy * ndy / nd;
+      const vt = -e.vx * ndy / nd + e.vy * ndx / nd;
+      const limit = rd * Math.abs(vt);
+      if (Math.abs(vr) > limit) {
+        const excess = vr - Math.sign(vr) * limit;
+        e.vx -= 0.01 * excess * ndx / nd;
+        e.vy -= 0.01 * excess * ndy / nd;
+      }
+    }
+    e.trail.push({ x: e.x, y: e.y });
+    if (e.trail.length > eTrailLen) e.trail.shift();
+  }
+}
+
+// Project a world-space point through the current canvas transform to screen pixels.
+// We read the live DOMMatrix so this stays in sync with whatever transform draw() set.
+function _worldToScreen(ctx, wx, wy) {
+  const m = ctx.getTransform();
+  return { x: m.a * wx + m.c * wy + m.e, y: m.b * wx + m.d * wy + m.f };
+}
+
+function drawElectrons(ctx) {
+  if (!electrons.length || !_eGlowImg) return;
+
+  // Project all trail points and heads to screen space before we reset the transform.
+  // This keeps glow size and trail width constant in screen pixels regardless of zoom.
+  const screenElectrons = electrons.map(e => ({
+    sx: _worldToScreen(ctx, e.x, e.y),
+    trail: e.trail.map(p => _worldToScreen(ctx, p.x, p.y)),
+    color: SHELL_COLORS[e.shell % SHELL_COLORS.length],
+  }));
+
+  ctx.save();
+  ctx.setTransform(1, 0, 0, 1, 0, 0); // draw in screen space
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+  ctx.lineWidth = 1.5;
+
+  for (const se of screenElectrons) {
+    const pts = se.trail;
+    const n = pts.length;
+    if (n < 2) continue;
+    ctx.strokeStyle = se.color;
+    for (let i = 1; i < n; i++) {
+      const t = i / (n - 1);
+      ctx.globalAlpha = t * t * t * 0.9;
+      const p0 = pts[i - 1];
+      const p1 = pts[i];
+      const sx = i === 1 ? p0.x : (pts[i - 2].x + p0.x) / 2;
+      const sy = i === 1 ? p0.y : (pts[i - 2].y + p0.y) / 2;
+      const ex = (p0.x + p1.x) / 2;
+      const ey = (p0.y + p1.y) / 2;
+      ctx.beginPath();
+      ctx.moveTo(sx, sy);
+      ctx.quadraticCurveTo(p0.x, p0.y, ex, ey);
+      ctx.stroke();
+    }
+  }
+
+  ctx.restore();
+}
+
+// Auto neutron count: 1:1 up to Z=20, then +0.1× per 10 protons above 20.
+function autoNeutrons(Z) {
+  if (Z === 1) return 0;
+  if (Z <= 20) return Z;
+  const ratio = 1.1 + Math.ceil((Z - 20) / 10) * 0.1;
+  return Math.round(ratio * Z);
+}
+
+let customZ = 0; // proton count driven by the slider
+let autoScaleZoom = true;
+let _lastAutoScalePeriod = -1;
+
+function _sliderFromZoom(z) {
+  if (z <= 0.55) return -Math.log(z / 0.55) / Math.log(0.006 / 0.55);
+  return (z - 0.55) / 4.85;
+}
+
+function _periodForZ(Z) {
+  if (Z <=  2) return 1;
+  if (Z <= 10) return 2;
+  if (Z <= 18) return 3;
+  if (Z <= 36) return 4;
+  if (Z <= 54) return 5;
+  if (Z <= 86) return 6;
+  return 7;
+}
+
+function _periodMaxOuterR(Z) {
+  const bounds = [,[1,2],[3,10],[11,18],[19,36],[37,54],[55,86],[87,118]];
+  const [lo, hi] = bounds[_periodForZ(Z)];
+  let maxR = 0;
+  for (let z = lo; z <= hi; z++) {
+    const anchor = _anchorPm(z);
+    if (anchor != null) {
+      maxR = Math.max(maxR, anchor * shellBaseR);
+    } else {
+      const tbl = SHELL_RADII_PM[z];
+      if (tbl) maxR = Math.max(maxR, tbl[tbl.length - 1] * shellBaseR);
+    }
+  }
+  return maxR;
+}
+
+function applyAutoScale(force) {
+  if (!autoScaleZoom || !electrons.length) return;
+  const period = _periodForZ(customZ);
+  if (!force && period === _lastAutoScalePeriod) return;
+  _lastAutoScalePeriod = period;
+  const outerR = _periodMaxOuterR(customZ);
+  const H = canvas.height;
+  const targetZoom = Math.min((H * 0.34) / outerR, 2.0);
+  viewZoom = targetZoom;
+  const sl = document.getElementById('zoomSlider');
+  if (sl) sl.value = _sliderFromZoom(targetZoom).toFixed(3);
+}
+
+function setNucleusFromZ(Z) {
+  customZ = Z;
+  const N = autoNeutrons(Z);
+  const W = canvas.width, H = canvas.height;
+  if (Z === 0) {
+    animParent = null;
+    _imgParent = null;
+  } else {
+    animParent = generateNucleus(Z, N, W / 2, H / 2, currentSeed);
+    buildNucleusImages();
+  }
+  // Keep shell electrons but clear trails since nucleus changed
+  for (const e of electrons) e.trail = [];
+  document.getElementById('protonSliderVal').textContent = Z;
+  document.getElementById('protonSlider').value = Z;
+  draw();
+}
+
+// ─── Master element table ────────────────────────────────────────────────────
+// Radii in pm. null = no data. cat/col/row: grid button position (col=0 → not in grid).
+const ELEMENT_DATA = {
+   1: { sym:'H',  name:'Hydrogen',   emp:25,  calc:53,  vdw:120, cov:32,  met:null, cat:'alkali',    col:1, row:1 },
+   2: { sym:'He', name:'Helium',     emp:120, calc:31,  vdw:140, cov:46,  met:null, cat:'noble',     col:8, row:1 },
+   3: { sym:'Li', name:'Lithium',    emp:145, calc:167, vdw:182, cov:133, met:152,  cat:'alkali',    col:1, row:2 },
+   4: { sym:'Be', name:'Beryllium',  emp:105, calc:112, vdw:153, cov:102, met:112,  cat:'alkaline',  col:2, row:2 },
+   5: { sym:'B',  name:'Boron',      emp:85,  calc:87,  vdw:192, cov:85,  met:null, cat:'metalloid', col:0, row:0 },
+   6: { sym:'C',  name:'Carbon',     emp:70,  calc:67,  vdw:170, cov:75,  met:null, cat:'carbon-gp', col:6, row:2 },
+   7: { sym:'N',  name:'Nitrogen',   emp:65,  calc:56,  vdw:155, cov:71,  met:null, cat:'nonmetal',  col:0, row:0 },
+   8: { sym:'O',  name:'Oxygen',     emp:60,  calc:48,  vdw:152, cov:63,  met:null, cat:'nonmetal',  col:0, row:0 },
+   9: { sym:'F',  name:'Fluorine',   emp:50,  calc:42,  vdw:147, cov:64,  met:null, cat:'halogen',   col:7, row:2 },
+  10: { sym:'Ne', name:'Neon',       emp:160, calc:38,  vdw:154, cov:67,  met:null, cat:'noble',     col:8, row:2 },
+  11: { sym:'Na', name:'Sodium',     emp:180, calc:190, vdw:227, cov:155, met:186,  cat:'alkali',    col:1, row:3 },
+  12: { sym:'Mg', name:'Magnesium',  emp:150, calc:145, vdw:173, cov:139, met:160,  cat:'alkaline',  col:2, row:3 },
+  13: { sym:'Al', name:'Aluminium',  emp:125, calc:118, vdw:184, cov:126, met:143,  cat:'post-trans',col:0, row:0 },
+  14: { sym:'Si', name:'Silicon',    emp:110, calc:111, vdw:210, cov:116, met:null, cat:'carbon-gp', col:6, row:3 },
+  15: { sym:'P',  name:'Phosphorus', emp:100, calc:98,  vdw:180, cov:111, met:null, cat:'nonmetal',  col:0, row:0 },
+  16: { sym:'S',  name:'Sulfur',     emp:100, calc:88,  vdw:180, cov:103, met:null, cat:'nonmetal',  col:0, row:0 },
+  17: { sym:'Cl', name:'Chlorine',   emp:100, calc:79,  vdw:175, cov:99,  met:null, cat:'halogen',   col:7, row:3 },
+  18: { sym:'Ar', name:'Argon',      emp:71,  calc:71,  vdw:188, cov:96,  met:null, cat:'noble',     col:8, row:3 },
+  19: { sym:'K',  name:'Potassium',  emp:220, calc:243, vdw:275, cov:196, met:227,  cat:'alkali',    col:1, row:4 },
+  20: { sym:'Ca', name:'Calcium',    emp:180, calc:194, vdw:231, cov:171, met:197,  cat:'alkaline',  col:2, row:4 },
+  21: { sym:'Sc', name:'Scandium',   emp:160, calc:184, vdw:211, cov:148, met:162,  cat:'transition',col:0, row:0 },
+  22: { sym:'Ti', name:'Titanium',   emp:140, calc:176, vdw:null,cov:136, met:147,  cat:'transition',col:0, row:0 },
+  23: { sym:'V',  name:'Vanadium',   emp:135, calc:171, vdw:null,cov:134, met:134,  cat:'transition',col:0, row:0 },
+  24: { sym:'Cr', name:'Chromium',   emp:140, calc:166, vdw:null,cov:122, met:128,  cat:'transition',col:0, row:0 },
+  25: { sym:'Mn', name:'Manganese',  emp:140, calc:161, vdw:null,cov:119, met:127,  cat:'transition',col:0, row:0 },
+  26: { sym:'Fe', name:'Iron',       emp:140, calc:156, vdw:null,cov:116, met:126,  cat:'transition',col:3, row:4 },
+  27: { sym:'Co', name:'Cobalt',     emp:135, calc:152, vdw:null,cov:111, met:125,  cat:'transition',col:0, row:0 },
+  28: { sym:'Ni', name:'Nickel',     emp:135, calc:149, vdw:163, cov:110, met:124,  cat:'transition',col:0, row:0 },
+  29: { sym:'Cu', name:'Copper',     emp:135, calc:145, vdw:140, cov:112, met:128,  cat:'transition',col:4, row:4 },
+  30: { sym:'Zn', name:'Zinc',       emp:135, calc:142, vdw:139, cov:118, met:134,  cat:'transition',col:5, row:4 },
+  31: { sym:'Ga', name:'Gallium',    emp:130, calc:136, vdw:187, cov:124, met:135,  cat:'post-trans',col:0, row:0 },
+  32: { sym:'Ge', name:'Germanium',  emp:125, calc:125, vdw:211, cov:121, met:null, cat:'carbon-gp', col:6, row:4 },
+  33: { sym:'As', name:'Arsenic',    emp:115, calc:114, vdw:185, cov:121, met:null, cat:'metalloid', col:0, row:0 },
+  34: { sym:'Se', name:'Selenium',   emp:115, calc:103, vdw:190, cov:116, met:null, cat:'nonmetal',  col:0, row:0 },
+  35: { sym:'Br', name:'Bromine',    emp:115, calc:94,  vdw:185, cov:114, met:null, cat:'halogen',   col:7, row:4 },
+  36: { sym:'Kr', name:'Krypton',    emp:null,calc:88,  vdw:202, cov:117, met:null, cat:'noble',     col:8, row:4 },
+};
+
+// ─── Atomic radii in pm (main-group / non-transition metals only) ─────────────
+// Source: textbook chart. Transition metals (Z 21-30, 39-48, 57-80) omitted —
+// getShellRadius falls back to Slater ratios for those.
+const ATOMIC_RADII_PM = {
+   1: 37,   2: 31,                                                              // H, He
+   3: 152,  4: 112,  5: 85,  6: 77,  7: 70,  8: 73,  9: 72,  10: 70,         // Li–Ne
+  11: 186, 12: 160, 13: 143, 14: 118, 15: 110, 16: 103, 17: 99,  18: 98,     // Na–Ar
+  19: 227, 20: 197,                                                              // K, Ca
+  21: 164, 22: 147, 23: 135, 24: 129, 25: 137, 26: 126, 27: 125, 28: 125, 29: 128, 30: 137, // Sc–Zn
+  31: 135, 32: 123, 33: 120, 34: 117, 35: 114, 36: 112,                        // Ga–Kr
+  37: 248, 38: 215,                                                              // Rb, Sr
+  47: 144, 48: 152,                                                              // Ag, Cd
+  49: 166, 50: 140, 51: 141, 52: 143, 53: 133, 54: 131,                        // In–Xe
+  55: 265, 56: 222,                                                              // Cs, Ba
+  81: 171, 82: 175, 83: 155, 84: 164, 85: 142, 86: 140,                        // Tl–Rn
+};
+
+// Van der Waals radii (pm). Used when radiusMode === 'vdw'.
+const VDW_RADII_PM = {
+   1: 120,  2: 140,
+   3: 182,  4: 153,  6: 170,  7: 155,  8: 152,  9: 147, 10: 143,  // Ne *
+  11: 227, 12: 173, 14: 210, 16: 180, 17: 175, 18: 173,           // Ar *
+  19: 275, 20: 231,
+  26: 194, 29: 140, 30: 139,
+  32: 211, 35: 185, 36: 182,                                       // Kr *
+};
+
+// Shannon ionic radii (pm). Used when radiusMode === 'vdw' and electron count matches the ion.
+const ION_RADII_VDW_PM = {
+   3: { e:  2, r:  76 },   // Li⁺
+   4: { e:  2, r:  45 },   // Be²⁺
+   7: { e: 10, r: 146 },   // N³⁻
+   8: { e: 10, r: 140 },   // O²⁻
+   9: { e: 10, r: 151 },   // F⁻ *
+  11: { e: 10, r: 102 },   // Na⁺
+  12: { e: 10, r:  72 },   // Mg²⁺
+  16: { e: 18, r: 184 },   // S²⁻
+  17: { e: 18, r: 181 },   // Cl⁻
+  19: { e: 18, r: 138 },   // K⁺
+  20: { e: 18, r: 100 },   // Ca²⁺
+  26: { e: 24, r:  78 },   // Fe²⁺
+  29: { e: 27, r:  73 },   // Cu²⁺
+  30: { e: 28, r:  74 },   // Zn²⁺
+  35: { e: 36, r: 196 },   // Br⁻
+};
+
+// Covalent ionic radii (pm): Shannon/vdW ratio × covalent neutral. Used when radiusMode === 'covalent'.
+const ION_RADII_COV_PM = {
+   3: { e:  2, r:  63 },   // Li⁺   (76/182 × 152)
+   4: { e:  2, r:  33 },   // Be²⁺  (45/153 × 112)
+   7: { e: 10, r:  66 },   // N³⁻   (146/155 × 70)
+   8: { e: 10, r:  67 },   // O²⁻   (140/152 × 73)
+   9: { e: 10, r:  74 },   // F⁻ *  (151/147 × 72)
+  11: { e: 10, r:  84 },   // Na⁺   (102/227 × 186)
+  12: { e: 10, r:  67 },   // Mg²⁺  (72/173 × 160)
+  16: { e: 18, r: 105 },   // S²⁻   (184/180 × 103)
+  17: { e: 18, r: 102 },   // Cl⁻   (181/175 × 99)
+  19: { e: 18, r: 114 },   // K⁺    (138/275 × 227)
+  20: { e: 18, r:  85 },   // Ca²⁺  (100/231 × 197)
+  26: { e: 24, r:  51 },   // Fe²⁺  (78/194 × 126)
+  29: { e: 27, r:  67 },   // Cu²⁺  (73/140 × 128)
+  30: { e: 28, r:  73 },   // Zn²⁺  (74/139 × 137)
+  35: { e: 36, r: 121 },   // Br⁻   (196/185 × 114)
+};
+
+// Shell radii in pm from Bohr model with Slater's rules: r_n = n²·52.9/Z_eff
+// Shell 0=n1, 1=n2, 2=n3 (3d for transition metals), 3=n4
+const SHELL_RADII_PM = {
+   1: [53],
+   2: [31],
+   3: [20, 163],
+   4: [14, 109],
+   5: [11,  81],
+   6: [ 9,  65],
+   7: [ 8,  54],
+   8: [ 7,  47],
+   9: [ 6,  41],
+  10: [ 5,  36],
+  11: [ 5,  31, 216],
+  12: [ 5,  27, 167],
+  13: [ 4,  24, 136],
+  14: [ 4,  22, 115],
+  15: [ 4,  20,  99],
+  16: [ 3,  18,  87],
+  17: [ 3,  16,  78],
+  18: [ 3,  15,  71],
+  19: [ 3,  14,  61, 385],
+  20: [ 3,  13,  54, 297],
+  21: [ 3,  13, 159, 470],
+  22: [ 2,  12, 131, 434],
+  23: [ 2,  11, 111, 403],
+  24: [ 2,  11, 104, 483],
+  25: [ 2,  10,  85, 353],
+  26: [ 2,  10,  76, 332],
+  27: [ 2,   9,  69, 314],
+  28: [ 2,   9,  63, 297],
+  29: [ 2,   9,  61, 339],
+  30: [ 2,   8,  54, 269],
+  31: [ 2,   8,  48, 223],
+  32: [ 2,   8,  44, 190],
+  33: [ 2,   7,  40, 166],
+  34: [ 2,   7,  37, 147],
+  35: [ 2,   7,  34, 132],
+  36: [ 1,   7,  32, 120],
+};
+
+// First ionization energies in eV (neutral atoms), used for force value labels
+const IE_EV = {
+   1:13.598,  2:24.587,
+   3: 5.392,  4: 9.323,  5: 8.298,  6:11.260,  7:14.534,  8:13.618,  9:17.423, 10:21.565,
+  11: 5.139, 12: 7.646, 13: 5.986, 14: 8.152, 15:10.487, 16:10.360, 17:12.968, 18:15.760,
+  19: 4.341, 20: 6.113,
+  21: 6.561, 22: 6.828, 23: 6.746, 24: 6.767, 25: 7.434, 26: 7.902, 27: 7.881, 28: 7.640, 29: 7.726, 30: 9.394,
+  31: 5.999, 32: 7.900, 33: 9.815, 34: 9.753, 35:11.814, 36:14.000,
+  37: 4.177, 38: 5.695,
+  39: 6.217, 40: 6.634, 41: 6.759, 42: 7.092, 43: 7.280, 44: 7.361, 45: 7.459, 46: 8.337, 47: 7.576, 48: 8.994,
+  49: 5.786, 50: 7.344, 51: 8.608, 52: 9.010, 53:10.451, 54:12.130,
+  55: 3.894, 56: 5.212,
+  72: 6.825, 73: 7.550, 74: 7.864, 75: 7.833, 76: 8.438, 77: 8.967, 78: 8.959, 79: 9.226, 80:10.438,
+  81: 6.108, 82: 7.417, 83: 7.286, 84: 8.418, 85: 9.500, 86:10.745,
+};
+
+function fmtNNLabel(nN, peer) {
+  if (!isFinite(nN) || nN <= 0) return null;
+  const precise = peer !== undefined && isFinite(peer) && peer > 0 && Math.round(nN) === Math.round(peer);
+  return precise ? nN.toFixed(1) + ' nN' : Math.round(nN) + ' nN';
+}
+
+let shellBaseR = 15;  // px per pm — controls visual scale of all shells
+let radiusMode = 'covalent'; // 'covalent' | 'vdw'
+let showGrid   = false;
+let _themeGridRgb = [26, 110, 255]; // accent2 of current theme, parsed to [r,g,b]
+let gridType   = 'square'; // 'square' | 'radial'
+let showForceValues = false;
+
+// Drawn in screen space after ctx.restore() — constant visual density at all zoom levels.
+// nucSX/nucSY: nucleus screen position; W/H: canvas dims; tbH: toolbar height.
+function _drawGrid(ctx, nucSX, nucSY, W, H, tbH, zoom) {
+  const tron   = true;
+  // 20 pm × shellBaseR × zoom keeps grid anchored to atom scale
+  const major  = Math.round(20 * shellBaseR * zoom);
+  const sub    = 5;    // minor subdivisions per major cell
+  const minor  = major / sub;
+
+  const t          = performance.now();
+  const pulse      = 0.5 + 0.5 * Math.sin(t / 900);
+  const pulseMinor = 0.5 + 0.5 * Math.sin(t / 900 + 1.2);
+  const [gr, gg, gb] = _themeGridRgb;
+
+  const majorAlpha = tron ? 0.45 + 0.35 * pulse      : 0.38;
+  const minorAlpha = tron ? 0.07 + 0.08 * pulseMinor : 0.11;
+  const majorColor = tron ? `rgba(${gr},${gg},${gb},${majorAlpha})`  : `rgba(100,160,220,${majorAlpha})`;
+  const minorColor = tron ? `rgba(${gr},${gg},${gb},${minorAlpha})`  : `rgba(100,150,200,${minorAlpha})`;
+  const glowColor  = `rgb(${gr},${gg},${gb})`;
+  const glowBlur   = tron ? 6 + 10 * pulse : 0;
+
+  ctx.save();
+
+  if (gridType === 'square') {
+    // Minor lines — offset so lines always pass through the nucleus screen pos
+    ctx.strokeStyle = minorColor;
+    ctx.lineWidth   = 1;
+    const x0minor = ((nucSX % minor) + minor) % minor;
+    const y0minor = ((nucSY % minor) + minor) % minor;
+    for (let x = x0minor; x <= W; x += minor) {
+      if (Math.round((x - nucSX) / minor) % sub === 0) continue; // skip majors
+      ctx.beginPath(); ctx.moveTo(x, tbH); ctx.lineTo(x, H); ctx.stroke();
+    }
+    for (let y = y0minor; y <= H; y += minor) {
+      if (y < tbH) continue;
+      if (Math.round((y - nucSY) / minor) % sub === 0) continue;
+      ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke();
+    }
+
+    // Major lines
+    ctx.strokeStyle = majorColor;
+    ctx.lineWidth   = tron ? 1.5 : 1;
+    if (tron) { ctx.shadowColor = glowColor; ctx.shadowBlur = glowBlur; }
+    const x0major = ((nucSX % major) + major) % major;
+    const y0major = ((nucSY % major) + major) % major;
+    for (let x = x0major; x <= W; x += major) {
+      ctx.beginPath(); ctx.moveTo(x, tbH); ctx.lineTo(x, H); ctx.stroke();
+    }
+    for (let y = y0major; y <= H; y += major) {
+      if (y < tbH) continue;
+      ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke();
+    }
+    ctx.shadowBlur = 0;
+
+  } else {
+    // Radial — concentric rings + spokes centered on nucleus screen pos
+    const maxR = Math.hypot(Math.max(nucSX, W - nucSX), Math.max(nucSY - tbH, H - nucSY));
+
+    // Minor rings
+    ctx.strokeStyle = minorColor;
+    ctx.lineWidth   = 1;
+    for (let r = minor; r <= maxR; r += minor) {
+      if (Math.round(r / minor) % sub === 0) continue;
+      ctx.beginPath(); ctx.arc(nucSX, nucSY, r, 0, Math.PI * 2); ctx.stroke();
+    }
+
+    // Major rings + spokes
+    ctx.strokeStyle = majorColor;
+    ctx.lineWidth   = tron ? 1.5 : 1;
+    if (tron) { ctx.shadowColor = glowColor; ctx.shadowBlur = glowBlur; }
+    for (let r = major; r <= maxR; r += major) {
+      ctx.beginPath(); ctx.arc(nucSX, nucSY, r, 0, Math.PI * 2); ctx.stroke();
+    }
+    for (let deg = 0; deg < 360; deg += 30) {
+      const rad = deg * Math.PI / 180;
+      ctx.beginPath();
+      ctx.moveTo(nucSX, nucSY);
+      ctx.lineTo(nucSX + maxR * Math.cos(rad), nucSY + maxR * Math.sin(rad));
+      ctx.stroke();
+    }
+    ctx.shadowBlur = 0;
+  }
+
+  ctx.restore();
+}
+
+function _anchorPm(z) {
+  if (radiusMode === 'vdw') return VDW_RADII_PM[z] ?? ATOMIC_RADII_PM[z];
+  return ATOMIC_RADII_PM[z];
+}
+
+function getShellRadius(s) {
+  const Z = Math.max(customZ, 1);
+  const table = SHELL_RADII_PM[Z];
+  let pm;
+  if (table && table[s] != null) {
+    const ionTable = radiusMode === 'vdw' ? ION_RADII_VDW_PM : ION_RADII_COV_PM;
+    const ionData = ionTable[Z];
+    const isIon = ionData && electrons.length === ionData.e;
+
+    if (isIon) {
+      // Use the ionic radius directly as the anchor for the ion's outer shell.
+      // Inner shells scale proportionally from that same anchor via SHELL_RADII_PM.
+      const ionOuter = electrons.some(e => e.shell != null)
+        ? Math.max(...electrons.map(e => e.shell))
+        : table.length - 1;
+      const refPm = table[ionOuter] ?? table[table.length - 1];
+      pm = ionData.r * table[s] / refPm;
+    } else {
+      const neutral = radiusMode === 'vdw' ? (VDW_RADII_PM[Z] ?? ATOMIC_RADII_PM[Z]) : ATOMIC_RADII_PM[Z];
+      pm = neutral != null ? neutral * table[s] / table[table.length - 1] : table[s];
+    }
+  } else {
+    pm = (s + 1) * (s + 1) * 53 / Z;
+  }
+  const px = pm * shellBaseR;
+  // Inner shell must clear the nucleus
+  if (s === 0 && animParent) return Math.max(px, animParent.sphereR * 1.4);
+  return px;
+}
+
+// ─── Shells tab: orbital physics with radial band and long-range repulsion ────
+const SHELL_ANGULAR_DAMP  = 0.994;   // very low damping — keeps orbital momentum
+let SHELL_JITTER          = 0.04;    // random angular kick per frame
+let eShellBandHW          = 60;      // shell band half-width (world units, fixed)
+const SHELL_REPULSE_K     = 0.007;   // same-shell angular repulsion (1/dA — longer range)
+const SHELL_MIN_SEP       = 0.05;    // min angular sep clamp
+const SHELL_MAX_DA        = 0.018;   // max angular speed (rad/frame)
+const SHELL_BASE_DA       = 0.003;   // minimum orbital speed — always cruising
+const SHELL_RADIAL_K      = 0.0025;  // radial push from nearby same-shell electrons
+const SHELL_RADIAL_DAMP   = 0.92;    // radial velocity damping
+const SHELL_RADIAL_RESTORE = 0.018;  // restoring spring toward shell center radius
+let eRadialJitter = 1.0;             // stochastic radial kick magnitude
+
+function stepElectronsShells() {
+  if (!animParent || !electrons.length) return;
+
+  // Same-shell repulsion: angular (1/dA, longer range) + radial (one in, one out)
+  for (let i = 0; i < electrons.length; i++) {
+    for (let j = i + 1; j < electrons.length; j++) {
+      const ei = electrons[i], ej = electrons[j];
+      if (ei.shell !== ej.shell) continue;
+      let dA = ei.angle - ej.angle;
+      dA = ((dA + Math.PI) % (Math.PI * 2) + Math.PI * 2) % (Math.PI * 2) - Math.PI;
+      const absDA = Math.abs(dA);
+      if (absDA < 0.001) continue;
+      const sign = dA > 0 ? 1 : -1;
+      // 1/dA falloff — much longer range than previous 1/dA²
+      const F = SHELL_REPULSE_K / Math.max(absDA, SHELL_MIN_SEP);
+      ei.dAngle += sign * F;
+      ej.dAngle -= sign * F;
+      // Radial component: close electrons push each other in/out of band
+      const radF = SHELL_RADIAL_K / Math.max(absDA * absDA, SHELL_MIN_SEP * SHELL_MIN_SEP);
+      ei.dRadial = (ei.dRadial || 0) + radF;
+      ej.dRadial = (ej.dRadial || 0) - radF;
+    }
+  }
+
+  for (const e of electrons) {
+    // Enforce minimum orbital speed — always cruising
+    const dir = e.dAngle >= 0 ? 1 : -1;
+    if (Math.abs(e.dAngle) < SHELL_BASE_DA) {
+      e.dAngle += dir * (SHELL_BASE_DA - Math.abs(e.dAngle)) * 0.12;
+    }
+
+    e.dAngle += (Math.random() - 0.5) * SHELL_JITTER;
+    e.dAngle *= SHELL_ANGULAR_DAMP;
+    e.dAngle = Math.max(-SHELL_MAX_DA, Math.min(SHELL_MAX_DA, e.dAngle));
+    e.angle = (e.angle + e.dAngle + Math.PI * 2) % (Math.PI * 2);
+
+    // Radial offset within the band — outer shells get more variation and weaker spring
+    const shellR = getShellRadius(e.shell);
+    const hw = eShellBandHW + shellR * 0.5;
+    const ssc = 1 + e.shell * 0.5;
+    if (!e.dRadial) e.dRadial = 0;
+    e.dRadial += (Math.random() - 0.5) * eRadialJitter * ssc;
+    e.dRadial -= e.radialOffset * (SHELL_RADIAL_RESTORE / ssc);
+    e.dRadial *= SHELL_RADIAL_DAMP;
+    e.dRadial = Math.max(-hw * 0.25 * ssc, Math.min(hw * 0.25 * ssc, e.dRadial));
+    e.radialOffset = Math.max(-hw * 0.85 * ssc, Math.min(hw * 0.85 * ssc, (e.radialOffset || 0) + e.dRadial));
+  }
+}
+
+function drawElectronsShells(ctx) {
+  if (!animParent || !electrons.length) return;
+  if (!_eGlowImg) _buildElectronGlow();
+  const cx = animParent.cx, cy = animParent.cy;
+  const Z = viewZoom;
+
+  ctx.save();
+
+  // Shaded channel for each occupied shell, colored by SHELL_COLORS
+  const occupied = new Set(electrons.map(e => e.shell));
+  for (const s of occupied) {
+    const r = getShellRadius(s);
+    const hw = eShellBandHW + r * 0.1;
+    const rInner = Math.max(0, r - hw);
+    const rOuter = r + hw;
+    const hex = SHELL_COLORS[s % SHELL_COLORS.length];
+    const rv = parseInt(hex.slice(1,3),16), gv = parseInt(hex.slice(3,5),16), bv = parseInt(hex.slice(5,7),16);
+    const grad = ctx.createRadialGradient(cx, cy, rInner, cx, cy, rOuter);
+    grad.addColorStop(0,   `rgba(${rv},${gv},${bv},0)`);
+    grad.addColorStop(0.5, `rgba(${rv},${gv},${bv},0.30)`);
+    grad.addColorStop(1,   `rgba(${rv},${gv},${bv},0)`);
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    ctx.arc(cx, cy, rOuter, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // Electrons as glow dots within their shell band
+  const worldR = electronDotR / Z;
+  ctx.globalAlpha = 1;
+  if (electronDotR > 0) {
+    for (const e of electrons) {
+      const r = getShellRadius(e.shell) + (e.radialOffset || 0);
+      const ex = cx + Math.cos(e.angle) * r;
+      const ey = cy + Math.sin(e.angle) * r;
+      ctx.drawImage(_eGlowImg, ex - worldR, ey - worldR, worldR * 2, worldR * 2);
+    }
+  }
+
+  // Bright white core
+  ctx.fillStyle = 'rgba(255,255,220,0.95)';
+  const coreR = electronDotR / 6 / Z;
+  for (const e of electrons) {
+    const r = getShellRadius(e.shell) + (e.radialOffset || 0);
+    ctx.beginPath();
+    ctx.arc(cx + Math.cos(e.angle) * r, cy + Math.sin(e.angle) * r, coreR, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // Highlight selection
+  if (arrowMode > 0) {
+    if (fvShellMode && selectedShell >= 0) {
+      ctx.strokeStyle = 'rgba(255,255,255,0.55)';
+      ctx.lineWidth = 2 / Z;
+      ctx.setLineDash([6 / Z, 4 / Z]);
+      ctx.beginPath();
+      ctx.arc(cx, cy, getShellRadius(selectedShell), 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.setLineDash([]);
+    } else if (!fvShellMode && selectedElectronIdx >= 0 && selectedElectronIdx < electrons.length) {
+      const se = electrons[selectedElectronIdx];
+      const sr = getShellRadius(se.shell) + (se.radialOffset || 0);
+      const sex = cx + Math.cos(se.angle) * sr;
+      const sey = cy + Math.sin(se.angle) * sr;
+      ctx.strokeStyle = 'rgba(255,255,255,0.7)';
+      ctx.lineWidth = 1.5 / Z;
+      ctx.setLineDash([4 / Z, 3 / Z]);
+      ctx.beginPath();
+      ctx.arc(sex, sey, 14 / Z, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
+  }
+
+  ctx.restore();
+}
+
+
+function drawShellRings(ctx) {
+  if (!animParent || !electrons.length) return;
+  const cx = animParent.cx, cy = animParent.cy;
+  const occupied = [...new Set(electrons.map(e => e.shell))];
+  ctx.save();
+  ctx.setLineDash([6, 10]);
+  ctx.lineWidth = 1;
+  ctx.globalAlpha = 0.35;
+  for (const s of occupied) {
+    const r = getShellRadius(s);
+    ctx.strokeStyle = SHELL_COLORS[s % SHELL_COLORS.length];
+    ctx.beginPath();
+    ctx.arc(cx, cy, r, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
+// ─── Force viz panel ──────────────────────────────────────────────────────────
+const FV_NUC_COLOR  = 'rgba(255,68,204,0.88)';   // magenta — nuclear attraction
+const FV_REP_COLOR  = 'rgba(0,238,255,0.88)';    // cyan    — electron repulsion
+const forceVizPanelEl = document.getElementById('forceVizPanel');
+const forceVizCv      = document.getElementById('forceVizCanvas');
+
+function fvArrowOnCtx(c, fromX, fromY, nx, ny, len, color, lw, headLen) {
+  if (len < 1) return;
+  const HEAD = headLen !== undefined ? headLen : Math.max(5, len * 0.234);
+  const midX = fromX + nx * len * 0.5, midY = fromY + ny * len * 0.5;
+  const tipX = fromX + nx * len,       tipY = fromY + ny * len;
+  const perpX = -ny, perpY = nx;
+  const baseX = tipX - nx * HEAD, baseY = tipY - ny * HEAD;
+  c.strokeStyle = color; c.fillStyle = color;
+  c.save();
+  c.shadowColor = color; c.shadowBlur = 8;
+  c.lineWidth = lw; c.globalAlpha = 1.0; c.lineCap = 'round';
+  c.beginPath(); c.moveTo(fromX, fromY);
+  c.quadraticCurveTo(midX, midY, baseX, baseY);
+  c.stroke();
+  const hw = lw * 1.44;
+  c.beginPath();
+  c.moveTo(tipX, tipY);
+  c.lineTo(baseX + perpX * hw, baseY + perpY * hw);
+  c.lineTo(baseX - perpX * hw, baseY - perpY * hw);
+  c.closePath(); c.fill();
+  c.restore();
+}
+
+// Horizontal camera shift so nucleus centers in the space left of the force panel.
+function getCameraShiftX() {
+  if (arrowMode > 0 && currentTab === 'shells') {
+    const panelW = forceVizPanelEl.offsetWidth || 424;
+    return -(panelW + 20) / 2;
+  }
+  return 0;
+}
+
+function syncForceVizCanvasSize() {
+  const w = forceVizPanelEl.offsetWidth;
+  const h = forceVizPanelEl.offsetHeight;
+  const topH = document.getElementById('forceVizKey').offsetHeight;
+  const cw = Math.max(80, w - 20) | 0;
+  const ch = Math.max(80, h - topH - 26) | 0;
+  if (forceVizCv.width !== cw || forceVizCv.height !== ch) {
+    forceVizCv.width = cw;
+    forceVizCv.height = ch;
+  }
+}
+
+function syncForceVizVisibility() {
+  const showFV = arrowMode > 0 && (currentTab === 'shells');
+  const wasHidden = forceVizPanelEl.style.display === 'none';
+  forceVizPanelEl.style.display = showFV ? 'block' : 'none';
+  if (showFV && wasHidden) _fvDefaultPosition();
+  const _isShells = currentTab === 'shells';
+  document.getElementById('showForcesBtn').style.display  = (!arrowMode && _isShells) ? '' : 'none';
+  document.getElementById('forceActiveCtrl').style.display = (arrowMode > 0 && _isShells) ? 'flex' : 'none';
+  document.getElementById('forceValuesLabel').style.display = (arrowMode > 0 && _isShells) ? '' : 'none';
+  if (showFV) { syncForceVizCanvasSize(); drawForceViz(); }
+  draw();
+}
+
+function drawForceVizShell() {
+  const fvc = forceVizCv.getContext('2d');
+  const W = forceVizCv.width, H = forceVizCv.height;
+  fvc.clearRect(0, 0, W, H);
+
+  if (selectedShell < 0 || !animParent || !electrons.some(e => e.shell === selectedShell)) {
+    fvc.fillStyle = 'rgba(255,255,255,0.3)';
+    fvc.font = '13px Lexend, sans-serif';
+    fvc.textAlign = 'center';
+    fvc.textBaseline = 'middle';
+    fvc.fillText('Click a shell to see its forces', W / 2, H / 2);
+    return;
+  }
+
+  const cx = animParent.cx, cy = animParent.cy;
+  const sr = getShellRadius(selectedShell);
+
+  const panelCx = W / 2, panelCy = H / 2;
+  const circleR  = Math.min(W, H) * 0.27;
+  const MAX_LEN  = Math.min(W, H) * 0.22;
+  // Calibrated so shell 0 at Z=82 (slider max) lands at ~90% of MAX_LEN.
+  // Power 0.2 keeps the curve below MAX_LEN across the full proton range — no hard wall.
+  // Divisor = 0.9^(1/0.2) = 0.9^5 ≈ 0.59.
+  const refR  = animParent ? getShellRadius(0) : shellBaseR * 10;
+  const F_MAX = eK * Math.max(customZ, 1) / (refR * refR * 0.59);
+  function shellArrowLen(f, fieNN, fcVal) {
+    const rawLen = Math.min(MAX_LEN, MAX_LEN * Math.pow(f / F_MAX, fvArrowExp));
+    if (!fieNN) return rawLen;
+    const fNN = f / fcVal * fieNN;
+    const T = 0.1 * fieNN;
+    return fNN < T ? rawLen * (fNN / T) : rawLen;
+  }
+
+  // Shell halos for all occupied shells, colored by SHELL_COLORS (matching main view)
+  // Animate zoom: interpolate from previous shell's world-radius to current
+  let effectiveSr = sr;
+  if (_fvPrevSr > 0 && _fvZoomStart >= 0) {
+    const t = Math.min(1, (performance.now() - _fvZoomStart) / FV_ZOOM_MS);
+    const ease = 1 - (1 - t) * (1 - t);
+    effectiveSr = _fvPrevSr + (sr - _fvPrevSr) * ease;
+    if (t >= 1) { _fvPrevSr = -1; _fvZoomStart = -1; }
+  }
+  _fvEffectiveSr = effectiveSr;
+  const scale = circleR / effectiveSr;
+  const allShells = [...new Set(electrons.map(e => e.shell))].sort((a, b) => a - b);
+  for (const s of allShells) {
+    const sr_s = getShellRadius(s);
+    const cr_s = sr_s * scale;
+    const p_hw = (eShellBandHW + sr_s * 0.1) * scale;
+    const rI = Math.max(0, cr_s - p_hw);
+    const rO = cr_s + p_hw;
+    const hex = SHELL_COLORS[s % SHELL_COLORS.length];
+    const rv = parseInt(hex.slice(1,3),16), gv = parseInt(hex.slice(3,5),16), bv = parseInt(hex.slice(5,7),16);
+    const alpha = s === selectedShell ? 0.30 : 0.20;
+    const sg = fvc.createRadialGradient(panelCx, panelCy, rI, panelCx, panelCy, rO);
+    sg.addColorStop(0,   `rgba(${rv},${gv},${bv},0)`);
+    sg.addColorStop(0.5, `rgba(${rv},${gv},${bv},${alpha})`);
+    sg.addColorStop(1,   `rgba(${rv},${gv},${bv},0)`);
+    fvc.fillStyle = sg;
+    fvc.beginPath(); fvc.arc(panelCx, panelCy, rO, 0, Math.PI * 2); fvc.fill();
+  }
+  // Actual panel-space radius of the selected shell (moves during zoom animation)
+  const selPanelR = sr * scale;
+
+  // Dashed ring to highlight the selected shell
+  const hex_sel = SHELL_COLORS[selectedShell % SHELL_COLORS.length];
+  fvc.save();
+  fvc.strokeStyle = hex_sel + 'bb';
+  fvc.lineWidth = 1.5;
+  fvc.setLineDash([6, 5]);
+  fvc.beginPath(); fvc.arc(panelCx, panelCy, selPanelR, 0, Math.PI * 2); fvc.stroke();
+  fvc.setLineDash([]);
+  fvc.restore();
+
+  // Nucleus — proportionally scaled so a bigger selected shell makes it look smaller
+  const panelNucR = Math.max(3, animParent.sphereR * scale);
+  if (_imgParent) {
+    const drawSize = _imgParent.width * (panelNucR / _imgParent._natR);
+    fvc.drawImage(_imgParent, panelCx - drawSize / 2, panelCy - drawSize / 2, drawSize, drawSize);
+  } else {
+    fvc.save();
+    fvc.fillStyle = FV_NUC_COLOR;
+    fvc.shadowColor = FV_NUC_COLOR; fvc.shadowBlur = 6;
+    fvc.beginPath(); fvc.arc(panelCx, panelCy, panelNucR, 0, Math.PI * 2); fvc.fill();
+    fvc.restore();
+  }
+
+  // Neutral density overlay — dims the nucleus so arrows on top are easier to read
+  fvc.save();
+  fvc.fillStyle = 'rgba(0,0,0,0.4)';
+  fvc.beginPath(); fvc.arc(panelCx, panelCy, panelNucR * 1.6, 0, Math.PI * 2); fvc.fill();
+  fvc.restore();
+
+  // Disclaimer — always shown
+  fvc.save();
+  fvc.font = '12px Lexend, sans-serif';
+  fvc.fillStyle = 'rgba(255,255,255,0.22)';
+  fvc.textAlign = 'center'; fvc.textBaseline = 'bottom';
+  fvc.fillText('Arrows show force per electron, not to scale.', W / 2, H - 14);
+  fvc.fillText('Arrow lengths are scaled so forces stay visible.', W / 2, H - 1);
+  fvc.restore();
+
+  // Don't draw force arrows until the zoom animation has finished
+  if (_fvZoomStart >= 0) return;
+
+  // Force-value label anchor: IE/r_valence (nN), all others scaled by Coulomb ratio
+  const _outerS  = electrons.length ? Math.max(...electrons.map(e => e.shell)) : 0;
+  const _rValPx  = getShellRadius(_outerS);
+  const _rValPm  = _rValPx / shellBaseR;
+  const _ie      = IE_EV[customZ];
+  const _FieNN   = _ie ? _ie / _rValPm * 160.2 : null;
+  const _FcVal   = eK * Math.max(customZ, 1) / (_rValPx * _rValPx);
+
+  // Build static "ideal ring" positions for electrons on OTHER shells.
+  // Each shell's electrons are placed at evenly-spaced fixed angles, not their
+  // live orbital angles, so the result is the same every frame.
+  const shellCounts = {};
+  for (const e of electrons) {
+    if (e.shell >= selectedShell) continue;  // only inner shells repel outward
+    shellCounts[e.shell] = (shellCounts[e.shell] || 0) + 1;
+  }
+  const staticPts = [];
+  for (const [s, n] of Object.entries(shellCounts)) {
+    const r = getShellRadius(parseInt(s));
+    for (let k = 0; k < n; k++) {
+      const a = k * Math.PI * 2 / n;
+      staticPts.push({ x: cx + Math.cos(a) * r, y: cy + Math.sin(a) * r });
+    }
+  }
+
+  // 6 evenly-spaced sample points
+  for (let i = 0; i < 6; i++) {
+    const angle = i * Math.PI / 3;
+    const cosA  = Math.cos(angle), sinA = Math.sin(angle);
+
+    const simX = cx + cosA * sr;
+    const simY = cy + sinA * sr;
+    const px   = panelCx + cosA * selPanelR;
+    const py   = panelCy + sinA * selPanelR;
+
+    const fNuc = eK * Math.max(customZ, 1) / (sr * sr);
+
+    let frex = 0, frey = 0;
+    for (const pt of staticPts) {
+      const ddx = simX - pt.x, ddy = simY - pt.y;
+      const d2  = Math.max(ddx * ddx + ddy * ddy, 625);
+      const d   = Math.sqrt(d2);
+      frex += eK / d2 * ddx / d;
+      frey += eK / d2 * ddy / d;
+    }
+    const fRep = Math.sqrt(frex * frex + frey * frey);
+
+    const nucLen = shellArrowLen(fNuc, _FieNN, _FcVal);
+    fvArrowOnCtx(fvc, px, py, -cosA, -sinA, nucLen, FV_NUC_COLOR, 2, nucLen * 0.35);
+
+    if (fRep > 0.001) {
+      const repLen = shellArrowLen(fRep, _FieNN, _FcVal);
+      fvArrowOnCtx(fvc, px, py, cosA, sinA, repLen, FV_REP_COLOR, 2, repLen * 0.35);
+    }
+
+    // Net force (for label only — no arrow drawn in v1)
+    const _netFx = -cosA * fNuc + frex, _netFy = -sinA * fNuc + frey;
+    const _netMag = Math.sqrt(_netFx * _netFx + _netFy * _netFy);
+    const _netNx = _netMag > 0.001 ? _netFx / _netMag : 0, _netNy = _netMag > 0.001 ? _netFy / _netMag : 0;
+    const _netScale = electrons.length <= 1 ? 1 : 0.5;
+    const netLen = _netMag > 0.001 ? shellArrowLen(_netMag, _FieNN, _FcVal) * _netScale : 0;
+
+    // Labels on top-left sample point only (i=4, upper-left in canvas coords)
+    if (showForceValues && _FieNN && i === 4) {
+      fvc.save();
+      fvc.font = 'bold 13px Lexend, sans-serif';
+      fvc.textBaseline = 'middle';
+      const nlx = -cosA, nly = -sinA;
+      const _dNuc = Math.round(fNuc / _FcVal * _FieNN);
+      const nucLabel = fmtNNLabel(fNuc / _FcVal * _FieNN, fRep / _FcVal * _FieNN);
+      if (nucLabel) {
+        fvc.fillStyle = FV_NUC_COLOR;
+        fvc.textAlign = nlx > 0.3 ? 'left' : nlx < -0.3 ? 'right' : 'center';
+        fvc.fillText(nucLabel, px + nlx * (nucLen + 4), py + nly * (nucLen + 4));
+      }
+      const _dRep = fRep > 0.001 ? Math.round(fRep / _FcVal * _FieNN) : 0;
+      if (fRep > 0.001) {
+        const repLabel = fmtNNLabel(fRep / _FcVal * _FieNN, fNuc / _FcVal * _FieNN);
+        if (repLabel) {
+          const repLen = shellArrowLen(fRep, _FieNN, _FcVal);
+          fvc.fillStyle = FV_REP_COLOR;
+          fvc.textAlign = cosA > 0.3 ? 'left' : cosA < -0.3 ? 'right' : 'center';
+          fvc.fillText(repLabel, px + cosA * (repLen + 4), py + sinA * (repLen + 4));
+        }
+      }
+      fvc.restore();
+    }
+  }
+}
+
+function drawForceViz() {
+  if (arrowMode === 0 || currentTab !== 'shells') return;
+  if (fvShellMode) { drawForceVizShell(); return; }
+  const fvc = forceVizCv.getContext('2d');
+  const W = forceVizCv.width, H = forceVizCv.height;
+  fvc.clearRect(0, 0, W, H);
+
+  if (selectedElectronIdx < 0 || selectedElectronIdx >= electrons.length || !animParent) {
+    // No selection — show hint text
+    fvc.fillStyle = 'rgba(255,255,255,0.3)';
+    fvc.font = '13px Lexend, sans-serif';
+    fvc.textAlign = 'center';
+    fvc.textBaseline = 'middle';
+    fvc.fillText('Click an electron to see its forces', W / 2, H / 2);
+    return;
+  }
+
+  const cx = animParent.cx, cy = animParent.cy;
+  const se = electrons[selectedElectronIdx];
+  const sr = getShellRadius(se.shell);
+  const sex = cx + Math.cos(se.angle) * sr;
+  const sey = cy + Math.sin(se.angle) * sr;
+
+  // ── Nuclear attraction (Z protons treated as point charge at center) ──────
+  const dxN = cx - sex, dyN = cy - sey;
+  const distN = Math.sqrt(dxN * dxN + dyN * dyN);
+  const fNuc = eK * Math.max(customZ, 1) / (distN * distN);
+  const nxN = dxN / distN, nyN = dyN / distN;
+
+  // ── Electron repulsion (vector sum from inner/same-shell electrons only) ──
+  let frex = 0, frey = 0;
+  for (let i = 0; i < electrons.length; i++) {
+    if (i === selectedElectronIdx) continue;
+    const oe = electrons[i];
+    if (oe.shell > se.shell) continue;  // outer-shell electrons push inward — skip
+    const oex = cx + Math.cos(oe.angle) * getShellRadius(oe.shell);
+    const oey = cy + Math.sin(oe.angle) * getShellRadius(oe.shell);
+    const ddx = sex - oex, ddy = sey - oey;
+    const d2 = Math.max(ddx * ddx + ddy * ddy, 625);
+    const d = Math.sqrt(d2);
+    frex += eK / d2 * ddx / d;
+    frey += eK / d2 * ddy / d;
+  }
+  const fRep = Math.sqrt(frex * frex + frey * frey);
+
+  // Same power-law scale as shell mode so arrow lengths are comparable across elements and shells
+  const refR   = animParent ? getShellRadius(0) : shellBaseR * 10;
+  const F_MAX  = eK * Math.max(customZ, 1) / (refR * refR * 0.59);
+  const MAX_LEN = Math.min(W, H) * 0.38;
+  function arrowLen(f, fieNN, fcVal) {
+    const rawLen = Math.min(MAX_LEN, MAX_LEN * Math.pow(f / F_MAX, fvArrowExp));
+    if (!fieNN) return rawLen;
+    const fNN = f / fcVal * fieNN;
+    const T = 0.1 * fieNN;
+    return fNN < T ? rawLen * (fNN / T) : rawLen;
+  }
+
+  // Draw in panel space with the electron at center
+  const panelCx = W / 2, panelCy = H / 2;
+  const panelR  = Math.min(W, H) * 0.10; // nucleus thumbnail radius
+
+  // Nucleus thumbnail (cloud outline)
+  fvc.save();
+  fvc.strokeStyle = 'rgba(255,255,255,0.18)';
+  fvc.lineWidth = 1;
+  fvc.beginPath();
+  fvc.arc(panelCx, panelCy, panelR, 0, Math.PI * 2);
+  fvc.stroke();
+  fvc.restore();
+
+  // Electron dot
+  fvc.fillStyle = '#eeff00';
+  fvc.shadowColor = '#eeff00'; fvc.shadowBlur = 8;
+  const eDot = 5;
+  const ePanelX = panelCx + nxN * (panelR + MAX_LEN * 0.25); // offset from nucleus toward electron
+  const ePanelY = panelCy + nyN * (panelR + MAX_LEN * 0.25);
+
+  // Use actual direction from nucleus for layout — nxN/nyN points toward nucleus from electron
+  // so electron is in direction (-nxN, -nyN) from nucleus
+  const eDir = { x: -nxN, y: -nyN };
+  const ePx = panelCx + eDir.x * (panelR + MAX_LEN * 0.28);
+  const ePy = panelCy + eDir.y * (panelR + MAX_LEN * 0.28);
+
+  fvc.beginPath(); fvc.arc(ePx, ePy, eDot, 0, Math.PI * 2); fvc.fill();
+  fvc.shadowBlur = 0;
+
+  // Force-value label anchor
+  const _outerS = electrons.length ? Math.max(...electrons.map(e => e.shell)) : se.shell;
+  const _rValPx = getShellRadius(_outerS);
+  const _rValPm = _rValPx / shellBaseR;
+  const _ie     = IE_EV[customZ];
+  const _FieNN  = _ie ? _ie / _rValPm * 160.2 : null;
+  const _FcVal  = eK * Math.max(customZ, 1) / (_rValPx * _rValPx);
+
+  // Smooth nuclear force value
+  const _fNN = (_FieNN && _FcVal) ? fNuc / _FcVal * _FieNN : 0;
+  if (_fvValueNucSmooth === null) _fvValueNucSmooth = _fNN;
+  else _fvValueNucSmooth += (_fNN - _fvValueNucSmooth) * FV_LABEL_LAG;
+
+  // Nuclear attraction arrow: from electron toward nucleus
+  const maxHead = MAX_LEN * 0.12;
+  const nucArrowLen = arrowLen(fNuc, _FieNN, _FcVal);
+  fvArrowOnCtx(fvc, ePx, ePy, nxN, nyN, nucArrowLen, FV_NUC_COLOR, 3, Math.min(maxHead, nucArrowLen * 0.4));
+
+  // Smooth label positions toward arrow tips (molasses lag)
+  const _nucTarget = { x: ePx + nxN * (nucArrowLen + 8), y: ePy + nyN * (nucArrowLen + 8) };
+  if (!_fvLabelNucSmooth) _fvLabelNucSmooth = { ..._nucTarget };
+  else { _fvLabelNucSmooth.x += (_nucTarget.x - _fvLabelNucSmooth.x) * FV_LABEL_LAG;
+         _fvLabelNucSmooth.y += (_nucTarget.y - _fvLabelNucSmooth.y) * FV_LABEL_LAG; }
+
+  // Electron repulsion arrow: from electron away from net repulsion direction
+  if (fRep > 0.001) {
+    const nxR = frex / fRep, nyR = frey / fRep;
+    const repArrowLen = arrowLen(fRep, _FieNN, _FcVal);
+    fvArrowOnCtx(fvc, ePx, ePy, nxR, nyR, repArrowLen, FV_REP_COLOR, 3, Math.min(maxHead, repArrowLen * 0.4));
+
+    const _repTarget = { x: ePx + nxR * (repArrowLen + 8), y: ePy + nyR * (repArrowLen + 8) };
+    if (!_fvLabelRepSmooth) _fvLabelRepSmooth = { ..._repTarget };
+    else { _fvLabelRepSmooth.x += (_repTarget.x - _fvLabelRepSmooth.x) * FV_LABEL_LAG;
+           _fvLabelRepSmooth.y += (_repTarget.y - _fvLabelRepSmooth.y) * FV_LABEL_LAG; }
+
+    const _rawRepNN = fRep / _FcVal * _FieNN;
+    if (_fvValueRepSmooth === null) _fvValueRepSmooth = _rawRepNN;
+    else _fvValueRepSmooth += (_rawRepNN - _fvValueRepSmooth) * FV_LABEL_LAG;
+
+    if (showForceValues && _FieNN) {
+      fvc.save();
+      fvc.font = 'bold 20px Lexend, sans-serif';
+      fvc.textBaseline = 'middle';
+      const nucLabel = fmtNNLabel(_fvValueNucSmooth, _fvValueRepSmooth);
+      if (nucLabel) {
+        fvc.fillStyle = FV_NUC_COLOR;
+        fvc.textAlign = nxN > 0.3 ? 'left' : nxN < -0.3 ? 'right' : 'center';
+        fvc.fillText(nucLabel, _fvLabelNucSmooth.x, _fvLabelNucSmooth.y);
+      }
+      const repLabel = fmtNNLabel(_fvValueRepSmooth, _fvValueNucSmooth);
+      if (repLabel) {
+        fvc.fillStyle = FV_REP_COLOR;
+        fvc.textAlign = nxR > 0.3 ? 'left' : nxR < -0.3 ? 'right' : 'center';
+        fvc.fillText(repLabel, _fvLabelRepSmooth.x, _fvLabelRepSmooth.y);
+      }
+      fvc.restore();
+    }
+  } else {
+    _fvLabelRepSmooth = null; _fvValueRepSmooth = null;
+    fvc.fillStyle = 'rgba(0,238,255,0.3)';
+    fvc.font = '11px Lexend, sans-serif';
+    fvc.textAlign = 'center';
+    fvc.textBaseline = 'top';
+    fvc.fillText('(no other electrons)', panelCx, H - 38);
+
+    if (showForceValues && _FieNN) {
+      fvc.save();
+      fvc.font = 'bold 20px Lexend, sans-serif';
+      fvc.fillStyle = FV_NUC_COLOR;
+      fvc.textAlign = nxN > 0.3 ? 'left' : nxN < -0.3 ? 'right' : 'center';
+      fvc.textBaseline = 'middle';
+      const nucLabel = fmtNNLabel(_fvValueNucSmooth);
+      if (nucLabel) fvc.fillText(nucLabel, _fvLabelNucSmooth.x, _fvLabelNucSmooth.y);
+      fvc.restore();
+    }
+  }
+
+  // Net force label (no arrow in v1)
+  {
+    const _netFx = nxN * fNuc + frex, _netFy = nyN * fNuc + frey;
+    const _netMag = Math.sqrt(_netFx * _netFx + _netFy * _netFy);
+    if (_netMag <= 0.001) _fvLabelNetSmooth = null;
+    if (_netMag > 0.001) {
+      const _netNx = _netFx / _netMag, _netNy = _netFy / _netMag;
+      const netArrowLen = arrowLen(_netMag, _FieNN, _FcVal) * (electrons.length <= 1 ? 1 : 0.5);
+    }
+  }
+
+  // Disclaimer
+  fvc.save();
+  fvc.font = '12px Lexend, sans-serif';
+  fvc.fillStyle = 'rgba(255,255,255,0.22)';
+  fvc.textAlign = 'center'; fvc.textBaseline = 'bottom';
+  fvc.fillText('Arrows show force per electron, not to scale.', W / 2, H - 14);
+  fvc.fillText('Arrow lengths are scaled so forces stay visible.', W / 2, H - 1);
+  fvc.restore();
+}
+
+function initNuclei() {
+  animParent = null;
+  _imgParent = null;
+  customZ = 0;
+  document.getElementById('protonSlider').value = 0;
+  document.getElementById('protonSliderVal').textContent = 0;
+}
+
+// Pre-render a nucleus to an offscreen canvas using the full gradient renderer.
+const _NUCLEUS_IMG_PAD = PARTICLE_RADIUS * 2 + 2;
+function _prerenderNucleus(nucleus) {
+  const r    = nucleus.sphereR;
+  const size = Math.ceil((r + _NUCLEUS_IMG_PAD) * 2);
+  const oc   = document.createElement('canvas');
+  oc.width = oc.height = size;
+  oc._natR = r;
+  const ocCtx = oc.getContext('2d');
+  const dx = size / 2 - nucleus.cx, dy = size / 2 - nucleus.cy;
+  const pts = nucleus.particles.map(p => ({ ...p, x: p.x + dx, y: p.y + dy }));
+  const savedFlat = _flatFill;
+  _flatFill = false;  // always render with full gradient quality
+  drawParticles(pts, 0, 1, ocCtx);
+  _flatFill = savedFlat;
+  return oc;
+}
+
+function buildNucleusImages() {
+  _imgParent = _prerenderNucleus(animParent);
+}
+
+// ─── Nucleus icon rendering ──────────────────────────────────────────────────
+function buildNucleusIconParticles(nP, nN, seed) {
+  const ICON_R  = 4;
+  const nTotal  = nP + nN;
+  const packFrac = 0.62;
+  const vol    = nTotal * (4/3 * Math.PI * ICON_R ** 3) / packFrac;
+  const sphR   = Math.cbrt(vol * 3 / (4 * Math.PI)) * 1.05;
+  const minD2  = (ICON_R * 2.05) ** 2;
+
+  let s = seed >>> 0;
+  const rand = () => { s = (s * 1664525 + 1013904223) & 0xffffffff; return (s >>> 0) / 0xffffffff; };
+
+  const pts = [];
+  let tries = 0;
+  while (pts.length < nTotal && tries < nTotal * 300) {
+    tries++;
+    const r3 = rand(), th = Math.acos(2 * rand() - 1), ph = rand() * 2 * Math.PI;
+    const r  = sphR * Math.cbrt(r3);
+    const ox = r * Math.sin(th) * Math.cos(ph);
+    const oy = r * Math.sin(th) * Math.sin(ph);
+    const oz = r * Math.cos(th);
+    let ok = true;
+    for (const q of pts) {
+      if ((ox-q.ox)**2 + (oy-q.oy)**2 + (oz-q.oz)**2 < minD2) { ok = false; break; }
+    }
+    if (ok) pts.push({ ox, oy, oz, type: pts.length < nP ? 'proton' : 'neutron', jx: 0, jy: 0 });
+  }
+  return pts.sort((a, b) => a.oz - b.oz);
+}
+const nucleusIconParticlesMap = {};
+for (const [key, nd] of Object.entries(NUCLEUS_DEFS)) {
+  nucleusIconParticlesMap[key] = buildNucleusIconParticles(nd.iconNP, nd.iconNN, nd.iconSeed);
+}
+
+function drawNucleusIcon(canvas, particles, scale = 1.0) {
+  if (!canvas) return;
+  const c = canvas.getContext('2d');
+  const w = canvas.width, h = canvas.height;
+  const cx = w / 2, cy = h / 2;
+  const R = 4 * scale;
+  c.clearRect(0, 0, w, h);
+  for (const p of particles) {
+    const px = cx + (p.ox + p.jx) * scale;
+    const py = cy + (p.oy + p.jy) * scale;
+    const isProton = p.type === 'proton';
+    const mid  = isProton ? '#ff1a65' : '#70707f';
+    const core = isProton ? '#ff80b0' : '#b0b0c4';
+    const baseGrad = c.createRadialGradient(px, py, 0, px, py, R * 1.1);
+    baseGrad.addColorStop(0,    mid);
+    baseGrad.addColorStop(0.82, mid);
+    baseGrad.addColorStop(1,    'rgba(0,0,0,0)');
+    c.fillStyle = baseGrad;
+    c.beginPath(); c.arc(px, py, R * 1.1, 0, Math.PI * 2); c.fill();
+    const innerGlow = c.createRadialGradient(px, py, 0, px, py, R);
+    innerGlow.addColorStop(0,   core);
+    innerGlow.addColorStop(0.5, core);
+    innerGlow.addColorStop(1,   'rgba(0,0,0,0)');
+    c.save();
+    c.shadowColor = core;
+    c.shadowBlur  = 4 * scale;
+    c.globalAlpha = 0.82;
+    c.fillStyle = innerGlow;
+    c.beginPath(); c.arc(px, py, R, 0, Math.PI * 2); c.fill();
+    c.restore();
+    c.globalAlpha = 1;
+  }
+}
+
+const miniNucleusIconParticles = (() => {
+  const ICON_R = 2;
+  const nP = 7, nN = 14, nTotal = nP + nN;
+  const packFrac = 0.62;
+  const vol   = nTotal * (4/3 * Math.PI * ICON_R**3) / packFrac;
+  const sphR  = Math.cbrt(vol * 3 / (4 * Math.PI)) * 1.05;
+  const minD2 = (ICON_R * 2.05)**2;
+  let s = 0xabcd1234;
+  const rand = () => { s = (s * 1664525 + 1013904223) & 0xffffffff; return (s >>> 0) / 0xffffffff; };
+  const pts = [];
+  let tries = 0;
+  while (pts.length < nTotal && tries < nTotal * 300) {
+    tries++;
+    const r3 = rand(), th = Math.acos(2 * rand() - 1), ph = rand() * 2 * Math.PI;
+    const r  = sphR * Math.cbrt(r3);
+    const ox = r * Math.sin(th) * Math.cos(ph);
+    const oy = r * Math.sin(th) * Math.sin(ph);
+    const oz = r * Math.cos(th);
+    let ok = true;
+    for (const q of pts) {
+      if ((ox-q.ox)**2 + (oy-q.oy)**2 + (oz-q.oz)**2 < minD2) { ok = false; break; }
+    }
+    if (ok) pts.push({ ox, oy, oz, type: pts.length < nP ? 'proton' : 'neutron', jx: 0, jy: 0 });
+  }
+  return pts.sort((a, b) => a.oz - b.oz);
+})();
+
+function drawMiniNucleusIcon(canvas) {
+  if (!canvas) return;
+  const c = canvas.getContext('2d');
+  const w = canvas.width, h = canvas.height;
+  const cx = w / 2, cy = h / 2;
+  const R = 2;
+  c.clearRect(0, 0, w, h);
+  for (const p of miniNucleusIconParticles) {
+    const px = cx + p.ox + p.jx;
+    const py = cy + p.oy + p.jy;
+    const isProton = p.type === 'proton';
+    const mid  = isProton ? '#ff1a65' : '#70707f';
+    const core = isProton ? '#ff80b0' : '#b0b0c4';
+    const baseGrad = c.createRadialGradient(px, py, 0, px, py, R * 1.1);
+    baseGrad.addColorStop(0, mid); baseGrad.addColorStop(0.82, mid); baseGrad.addColorStop(1, 'rgba(0,0,0,0)');
+    c.fillStyle = baseGrad; c.beginPath(); c.arc(px, py, R * 1.1, 0, Math.PI * 2); c.fill();
+    const innerGlow = c.createRadialGradient(px, py, 0, px, py, R);
+    innerGlow.addColorStop(0, core); innerGlow.addColorStop(0.5, core); innerGlow.addColorStop(1, 'rgba(0,0,0,0)');
+    c.save(); c.shadowColor = core; c.shadowBlur = 3; c.globalAlpha = 0.82;
+    c.fillStyle = innerGlow; c.beginPath(); c.arc(px, py, R, 0, Math.PI * 2); c.fill();
+    c.restore(); c.globalAlpha = 1;
+  }
+}
+
+function drawOutlineIcon() {
+  const ic = document.getElementById('outlineModeIcon');
+  if (!ic) return;
+  const c = ic.getContext('2d');
+  const w = ic.width, h = ic.height;
+  const cx = w / 2, cy = h / 2;
+  const sR = Math.min(w, h) * 0.36;
+  const R  = 2.5;
+  const N  = Math.max(5, Math.round(2 * Math.PI * sR / (R * 1.5)));
+  const centers = Array.from({ length: N }, (_, k) => {
+    const a = k * 2 * Math.PI / N;
+    return { x: cx + sR * Math.cos(a), y: cy + sR * Math.sin(a) };
+  });
+  function iconOuterIntersect(c1, c2) {
+    const dx = c2.x - c1.x, dy = c2.y - c1.y;
+    const d  = Math.sqrt(dx * dx + dy * dy);
+    const h2 = Math.sqrt(Math.max(0, R * R - (d / 2) ** 2));
+    const mx = (c1.x + c2.x) / 2, my = (c1.y + c2.y) / 2;
+    const px = -dy / d * h2, py = dx / d * h2;
+    const p1 = { x: mx + px, y: my + py }, p2 = { x: mx - px, y: my - py };
+    const d1 = (p1.x - cx)**2 + (p1.y - cy)**2;
+    const d2 = (p2.x - cx)**2 + (p2.y - cy)**2;
+    return d1 > d2 ? p1 : p2;
+  }
+  const arcs = centers.map((pt, k) => {
+    const prev = centers[(k - 1 + N) % N], next = centers[(k + 1) % N];
+    const sp = iconOuterIntersect(pt, prev);
+    const ep = iconOuterIntersect(pt, next);
+    return { cx: pt.x, cy: pt.y, startAngle: Math.atan2(sp.y - pt.y, sp.x - pt.x), endAngle: Math.atan2(ep.y - pt.y, ep.x - pt.x) };
+  });
+  c.clearRect(0, 0, w, h);
+  c.save();
+  c.shadowColor = 'rgba(80,160,255,0.9)'; c.shadowBlur = 4;
+  c.strokeStyle = 'rgba(160,215,255,1)'; c.lineWidth = 1;
+  c.beginPath();
+  c.moveTo(arcs[0].cx + R * Math.cos(arcs[0].startAngle), arcs[0].cy + R * Math.sin(arcs[0].startAngle));
+  for (const arc of arcs) c.arc(arc.cx, arc.cy, R, arc.startAngle, arc.endAngle, false);
+  c.closePath(); c.stroke(); c.restore();
+}
+
+let _iconLast = -67;
+function nucleusIconLoop(now) {
+  if (now - _iconLast >= 67) {   // ~15 fps
+    _iconLast = now;
+    for (const pts of Object.values(nucleusIconParticlesMap)) {
+      for (const p of pts) {
+        p.jx += (Math.random() - 0.5) * 0.7;
+        p.jy += (Math.random() - 0.5) * 0.7;
+        p.jx *= 0.78;
+        p.jy *= 0.78;
+      }
+    }
+    for (const p of miniNucleusIconParticles) {
+      p.jx += (Math.random() - 0.5) * 0.4;
+      p.jy += (Math.random() - 0.5) * 0.4;
+      p.jx *= 0.78;
+      p.jy *= 0.78;
+    }
+    drawMiniNucleusIcon(document.getElementById('particlesModeIcon'));
+  }
+  requestAnimationFrame(nucleusIconLoop);
+}
+nucleusIconLoop(0);
+drawOutlineIcon();
+
+// ─── Main draw function ─────────────────────────────────────────────────────
+function draw() {
+  ctx.fillStyle = document.body.classList.contains('screenshot-mode') ? getBgColor() : '#05040f';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  if (currentTab === 'orbit3d') { drawOrbit3D(ctx); return; }
+  if (!animParent) { drawEnergyGraph(); return; }
+
+  const _W = canvas.width, _H = canvas.height;
+  const _tbH = document.getElementById('toolbar').offsetHeight;
+  const _sbEl = document.getElementById('scrubBar');
+  const _sbH  = _sbEl.classList.contains('visible') ? _sbEl.offsetHeight : 0;
+  const _centerY = (_tbH + _H - _sbH) / 2;
+  const _camX = _W / 2 + getCameraShiftX() + panOffsetX;
+
+  if (showGrid) {
+    _drawGrid(ctx, _camX, _centerY + panOffsetY, _W, _H, _tbH, viewZoom);
+  }
+
+  ctx.save();
+  ctx.translate(_camX, _centerY + panOffsetY);
+  ctx.scale(viewZoom, viewZoom);
+  ctx.translate(-_W / 2, -_H / 2);
+
+  if (!showParticles) drawCloudOutline(animParent.cx, animParent.cy, animParent.sphereR);
+  if (showParticles) drawParticles(animParent.particles, 1);
+
+  if (currentTab === 'trails') drawShellRings(ctx);
+  if (currentTab === 'trails') drawElectrons(ctx);
+  else drawElectronsShells(ctx);
+
+  ctx.restore();
+
+  // Atomic radius — drawn above the grid in screen space, line and text same color
+  if (document.getElementById('showElectric').checked && electrons.length) {
+    const _outerShell = Math.max(...electrons.map(e => e.shell));
+    const _outerR     = getShellRadius(_outerShell) * viewZoom;
+    const _nucSY      = _centerY + panOffsetY;
+    const _arPm       = Math.round(_outerR / viewZoom / shellBaseR);
+    const _arSuffix   = ((customZ === 9 && electrons.length === 10) || (radiusMode === 'vdw' && (customZ === 10 || customZ === 18 || customZ === 36))) ? '*' : '';
+    const _arColor    = 'rgba(140,200,255,0.9)';
+    ctx.save();
+    ctx.strokeStyle = _arColor;
+    ctx.lineWidth   = 1.5;
+    ctx.setLineDash([6, 6]);
+    ctx.beginPath();
+    ctx.moveTo(_camX, _nucSY);
+    ctx.lineTo(_camX + _outerR, _nucSY);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle   = _arColor;
+    ctx.font        = '13px Lexend, sans-serif';
+    ctx.textAlign   = 'center';
+    ctx.textBaseline = 'bottom';
+    ctx.fillText(`r = ${_arPm}${_arSuffix} pm`, _camX + _outerR / 2, _nucSY - 6);
+    ctx.restore();
+  }
+
+  if (currentTab === 'shells') {
+    ctx.save();
+    ctx.font = '12px Lexend, sans-serif';
+    ctx.fillStyle = 'rgba(255,255,255,0.18)';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'bottom';
+    ctx.fillText('Distances and sizes are not shown to scale.', _camX, canvas.height - 10);
+    ctx.restore();
+  }
+
+  drawEnergyGraph();
+  updateParticleCounters();
+  drawForceViz();
+}
+
+// ─── Particle counter + mass ───────────────────────────────────────────────────
+const MASS_PROTON   = 1.007276;   // u
+const MASS_NEUTRON  = 1.008665;   // u
+const MASS_ELECTRON = 0.000549;   // u
+
+function updateParticleCounters() {
+  const p1P = document.getElementById('p1Protons');
+  if (!p1P) return;
+  const Z = customZ;
+  const N = autoNeutrons(Z);
+  const E = electrons.length;
+  p1P.textContent = Z;
+  const mass = Z * MASS_PROTON + N * MASS_NEUTRON + E * MASS_ELECTRON;
+  const massEl = document.getElementById('atomMass');
+  if (massEl) massEl.textContent = mass.toFixed(3);
+}
+
+
+
+
+
+// ─── Controls ─────────────────────────────────────────────────────────────────
+
+
+
+document.getElementById('zoomSlider').addEventListener('input', function () {
+  viewZoom = zoomFromSlider(parseFloat(this.value));
+  heatmapDirty = true;
+  draw();
+});
+
+document.getElementById('clearBtn').addEventListener('click', () => {
+  logAction('Pressed Reset');
+  heatmapDirty = true;
+  currentSeed = Math.floor(Math.random() * 1e9);
+  clearElectrons();
+  initNuclei();
+  draw();
+});
+
+
+
+let _autoscaleOffAt = 0;
+document.getElementById('autoscaleCheckbox').addEventListener('change', function() {
+  autoScaleZoom = this.checked;
+  if (autoScaleZoom) {
+    const freshOn = _autoscaleOffAt === 0 || Date.now() - _autoscaleOffAt < 5000;
+    if (freshOn) { panOffsetX = 0; panOffsetY = 0; }
+    _lastAutoScalePeriod = -1;
+    applyAutoScale();
+  } else {
+    _autoscaleOffAt = Date.now();
+  }
+});
+
+document.getElementById('showElectric').addEventListener('change', function() {
+  logAction('Atomic radius: ' + (this.checked ? 'on' : 'off'));
+  heatmapDirty = true;
+  draw();
+});
+
+document.getElementById('showGridCheckbox').addEventListener('change', function() {
+  showGrid = this.checked; draw();
+});
+document.getElementById('gridTypeSelect').addEventListener('change', function() {
+  gridType = this.value; draw();
+});
+
+
+document.getElementById('qualitySelect').addEventListener('change', function() {
+  _applyQuality(this.value);
+  draw();
+});
+
+
+function updateGraphBtn() {
+  const btn = document.getElementById('energyGraphToggle');
+  const graphOn = document.getElementById('energyGraphBox').classList.contains('visible');
+  if (!graphOn) {
+    btn.innerHTML = 'SHOW LINE<br>GRAPH';
+  } else if (egZoomStart === 0 && egZoomEnd >= 1) {
+    btn.innerHTML = 'HIDE LINE<br>GRAPH';
+  } else {
+    btn.innerHTML = 'FULL<br>TIMELINE';
+  }
+}
+
+document.getElementById('energyGraphToggle').addEventListener('click', function() {
+  const box = document.getElementById('energyGraphBox');
+  const graphOn = box.classList.contains('visible');
+  if (!graphOn) {
+    box.classList.add('visible');
+    this.classList.add('active');
+    document.getElementById('scrubGraphKey').classList.add('visible');
+    document.getElementById('scrubPercents').classList.add('visible');
+    // Canvas was hidden (offsetWidth=0) so resize it now that it's visible
+    egCanvas.width = egCanvas.offsetWidth || Math.max(1, window.innerWidth - 112 - 270);
+    drawEnergyGraph();
+  } else if (egZoomStart === 0 && egZoomEnd >= 1) {
+    box.classList.remove('visible');
+    this.classList.remove('active');
+    document.getElementById('scrubGraphKey').classList.remove('visible');
+    document.getElementById('scrubPercents').classList.remove('visible');
+  } else {
+    egZoomStart = 0; egZoomEnd = 1;
+    drawEnergyGraph();
+  }
+  updateGraphBtn();
+});
+
+let idleParticleRAF = null;
+function idleParticleLoop() {
+  if (animParent && showParticles) updateParticleJitter(animParent.particles.length, 1, true);
+  if (currentTab === 'trails') stepElectrons();
+  else if (currentTab === 'orbit3d') { if (!orb3dPaused) stepOrbit3D(); }
+  else stepElectronsShells();
+  if (animParent || currentTab === 'orbit3d') draw();
+  idleParticleRAF = requestAnimationFrame(idleParticleLoop);
+}
+
+
+function setForceWheelActive() {} // no-op, kept for call-site compatibility
+
+let arrowMode = 0;
+let fvShellMode = false;
+
+function syncElemBtnActive() {
+  document.querySelectorAll('.elem-btn').forEach(b => {
+    b.classList.toggle('active', parseInt(b.dataset.z) === customZ);
+  });
+}
+let selectedElectronIdx = -1;
+let selectedShell = -1;
+let _fvPrevSr      = -1;   // world-radius of the shell being zoomed FROM
+let _fvZoomStart   = -1;   // performance.now() when zoom began; -1 = not animating
+let _fvEffectiveSr = -1;   // last rendered effectiveSr — used as zoom-from on element switch
+const FV_ZOOM_MS = 375;
+let fvArrowExp = 0.13;  // exponent for shell-mode arrow length curve (lower = small forces bigger)
+let _fvLabelNucSmooth = null;
+let _fvLabelRepSmooth = null;
+let _fvLabelNetSmooth = null;
+let _fvValueNucSmooth = null;
+let _fvValueRepSmooth = null;
+const FV_LABEL_LAG = 0.07;
+let _YLBL_T    = 0.3;  // net label position along arrow (0=base, 1=tip)
+let _YLBL_PERP = 30;   // net label offset perpendicular (px)
+
+// ─── Tab switching ────────────────────────────────────────────────────────────
+const _devSlidersRow = document.getElementById('devSlidersRow');
+const _shellsOnlyHide = ['slRepulse', 'slDamp', 'slMinR', 'slMaxR'].map(id => document.getElementById(id)?.closest('.dev-row'));
+const _orbit3dOverlay = document.getElementById('orbit3dOverlay');
+function _syncDevSliders() {
+  const isOrbit = currentTab === 'orbit3d';
+  const isShells = currentTab === 'shells';
+  const devOn = document.getElementById('devToggle').checked;
+  _shellsOnlyHide.forEach(row => { if (row) row.style.display = isShells ? 'none' : ''; });
+  const shellDev = document.getElementById('shellDevSliders');
+  if (shellDev) shellDev.style.display = isOrbit ? 'none' : '';
+  if (isOrbit) {
+    _devSlidersRow.style.display = 'none';
+    if (_orbit3dOverlay) _orbit3dOverlay.style.display = devOn ? 'flex' : 'none';
+  } else {
+    _devSlidersRow.style.display = devOn ? 'flex' : 'none';
+    if (_orbit3dOverlay) _orbit3dOverlay.style.display = 'none';
+  }
+}
+_syncDevSliders();
+document.getElementById('devToggle').addEventListener('change', _syncDevSliders);
+
+// Type "dev" anywhere (outside inputs) to toggle dev mode
+(function() {
+  let _seq = '';
+  document.addEventListener('keydown', e => {
+    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT') return;
+    _seq = (_seq + e.key.toLowerCase()).slice(-3);
+    if (_seq === 'dev') { document.body.classList.toggle('dev-hidden'); }
+  });
+}());
+
+document.getElementById('radiusModeSelect').addEventListener('change', function () {
+  radiusMode = this.value;
+  _lastAutoScalePeriod = -1;
+  applyAutoScale(true);
+  draw();
+});
+
+function syncTabButtons() {
+  document.querySelectorAll('.awheel-item[data-tab]').forEach(b => b.classList.toggle('active', b.dataset.tab === currentTab));
+  const hideForce = currentTab === 'trails' || currentTab === 'orbit3d';
+  document.getElementById('forceCtrlBox').style.display = hideForce ? 'none' : '';
+}
+
+document.querySelectorAll('.awheel-item[data-tab]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    if (btn.dataset.tab === 'shells') arrowMode = 0;
+    currentTab = btn.dataset.tab;
+    syncTabButtons();
+    _syncDevSliders();
+    syncForceVizVisibility();
+    if (currentTab === 'orbit3d') syncOrb3dShellSliders();
+    canvas.style.cursor = currentTab === 'orbit3d' ? 'grab' : '';
+    logAction('Tab: ' + currentTab);
+    draw();
+  });
+});
+
+document.getElementById('showForcesBtn').addEventListener('click', () => {
+  arrowMode = 2;
+  if (electrons.length) selectedShell = Math.max(...electrons.map(e => e.shell));
+  logAction('Forces: on');
+  syncForceVizVisibility();
+});
+document.getElementById('hideForcesBtn').addEventListener('click', () => {
+  arrowMode = 0;
+  selectedElectronIdx = -1;
+  logAction('Forces: off');
+  syncForceVizVisibility();
+});
+
+// syncOrb3dShellSliders is called by the patched syncShellDevSliders below
+
+document.querySelectorAll('[data-fvmode]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    fvShellMode = btn.dataset.fvmode === 'shell';
+    if (fvShellMode && selectedElectronIdx >= 0 && selectedElectronIdx < electrons.length) {
+      selectedShell = electrons[selectedElectronIdx].shell;
+    }
+    if (!fvShellMode && electrons.length) {
+      const s = selectedShell >= 0 ? selectedShell : Math.max(...electrons.map(e => e.shell));
+      if (selectedElectronIdx < 0 || selectedElectronIdx >= electrons.length ||
+          electrons[selectedElectronIdx].shell !== s) {
+        selectedElectronIdx = _rightmostInShell(s);
+      }
+    }
+    document.querySelectorAll('[data-fvmode]').forEach(b => b.classList.toggle('active', b === btn));
+    draw();
+    drawForceViz();
+  });
+});
+
+document.getElementById('showForceValuesCheckbox').addEventListener('change', function() {
+  showForceValues = this.checked;
+  drawForceViz();
+});
+
+// ─── Force viz panel default position ────────────────────────────────────────
+function _fvDefaultPosition() {
+  const tbH  = document.getElementById('toolbar').offsetHeight;
+  const panH = forceVizPanelEl.offsetHeight;
+  const mid  = tbH + (window.innerHeight - tbH) / 2;
+  forceVizPanelEl.style.top   = Math.max(tbH + 8, Math.round(mid - panH / 2)) + 'px';
+  forceVizPanelEl.style.right = '20px';
+  forceVizPanelEl.style.left  = '';
+}
+window.addEventListener('resize', () => {
+  if (forceVizPanelEl.style.display !== 'none') _fvDefaultPosition();
+});
+
+// ─── Force viz panel drag + resize ───────────────────────────────────────────
+let _fvResize = null;
+document.querySelectorAll('#forceVizPanel .fp-rh').forEach(h => {
+  h.addEventListener('mousedown', e => {
+    e.stopPropagation();
+    const rect = forceVizPanelEl.getBoundingClientRect();
+    forceVizPanelEl.style.width  = rect.width  + 'px';
+    forceVizPanelEl.style.height = rect.height + 'px';
+    _fvResize = { dir: h.dataset.dir, sx: e.clientX, sy: e.clientY,
+                  ow: rect.width, oh: rect.height };
+  });
+});
+
+let _fvDrag = null;
+forceVizPanelEl.addEventListener('mousedown', e => {
+  if (e.target.classList.contains('fp-rh')) return;
+  const rect = forceVizPanelEl.getBoundingClientRect();
+  _fvDrag = { sx: e.clientX, sy: e.clientY, ol: rect.left, ot: rect.top };
+});
+
+window.addEventListener('mousemove', e => {
+  if (_fvResize) {
+    const { dir, sx, sy, ow, oh } = _fvResize;
+    const dx = e.clientX - sx, dy = e.clientY - sy;
+    let w = ow, h = oh;
+    if (dir.includes('w')) w = Math.max(140, ow - dx);
+    if (dir.includes('e')) w = Math.max(140, ow + dx);
+    if (dir.includes('s')) h = Math.max(140, oh + dy);
+    if (dir.includes('n')) h = Math.max(140, oh - dy);
+    forceVizPanelEl.style.width  = w + 'px';
+    forceVizPanelEl.style.height = h + 'px';
+    syncForceVizCanvasSize();
+    drawForceViz();
+  }
+  if (_fvDrag) {
+    forceVizPanelEl.style.left = (_fvDrag.ol + e.clientX - _fvDrag.sx) + 'px';
+    forceVizPanelEl.style.top  = (_fvDrag.ot + e.clientY - _fvDrag.sy) + 'px';
+    forceVizPanelEl.style.right = 'auto';
+  }
+});
+
+window.addEventListener('mouseup', () => { _fvResize = null; _fvDrag = null; });
+
+// ─── Dev panel wiring ─────────────────────────────────────────────────────────
+var syncShellDevSliders = function() {}; // populated by _wireDevSliders once shell groups are built
+(function _wireDevSliders() {
+  function bind(id, valId, setter, fmt) {
+    const inp = document.getElementById(id);
+    const lbl = document.getElementById(valId);
+    inp.addEventListener('input', () => {
+      const v = parseFloat(inp.value);
+      setter(v);
+      lbl.textContent = fmt(v);
+    });
+  }
+  bind('slK',     'slKVal',     v => { eK       = v; }, v => Math.round(v));
+  bind('slDamp',  'slDampVal',  v => { eDamp    = v; }, v => v.toFixed(4));
+  bind('slRepulse','slRepulseVal',v => { eRepulse = v; }, v => Math.round(v));
+  bind('slMinR',  'slMinRVal',  v => { eMinR    = v; }, v => Math.round(v));
+  bind('slMaxR',  'slMaxRVal',  v => { eMaxR    = v; }, v => Math.round(v));
+  bind('slDt',    'slDtVal',    v => { eDt      = v; }, v => v.toFixed(2));
+  bind('slTrail',  'slTrailVal',  v => { eTrailLen = Math.round(v); for (const e of electrons) { if (e.trail.length > eTrailLen) e.trail.splice(0, e.trail.length - eTrailLen); } }, v => Math.round(v));
+  bind('slBaseR',  'slBaseRVal',  v => { shellBaseR  = v; }, v => v.toFixed(0));
+  bind('slElectronDot', 'slElectronDotVal', v => { electronDotR = v; }, v => v.toFixed(1));
+  bind('slFvExp', 'slFvExpVal', v => { fvArrowExp = v; drawForceViz(); }, v => v.toFixed(2));
+  bind('slRadialJitter', 'slRadialJitterVal', v => { eRadialJitter = v; }, v => v.toFixed(3));
+  bind('slAngularJitter', 'slAngularJitterVal', v => { SHELL_JITTER = v; }, v => v.toFixed(4));
+  bind('slBandHW', 'slBandHWVal', v => { eShellBandHW = v; }, v => Math.round(v));
+  // ── Per-shell dev sliders (generated dynamically) ─────────────────────────────────────────
+  const SHELL_SLIDER_DEFS = [
+    { key: 'k',    label: 'k',         min: 1000,  max: 500000, step: 5000,  fmt: v => Math.round(v),   get: s => shellK[s],        set: (s,v) => { shellK[s] = v; } },
+    { key: 'wm',   label: 'wall mult', min: 0.1,   max: 3.0,    step: 0.05,  fmt: v => v.toFixed(2),    get: s => shellWallMult[s], set: (s,v) => { shellWallMult[s] = v; } },
+    { key: 'wk',   label: 'wall k',    min: 0,     max: 2000,   step: 5,     fmt: v => Math.round(v),   get: s => shellWallK[s],    set: (s,v) => { shellWallK[s] = v; } },
+    { key: 'vm',   label: 'v max',     min: 0.05,  max: 3.0,    step: 0.05,  fmt: v => v.toFixed(2),    get: s => shellVMax[s],     set: (s,v) => { shellVMax[s] = v; } },
+    { key: 'mr',   label: 'min r',     min: 0,     max: 200,    step: 1,     fmt: v => Math.round(v),    get: s => shellMinR[s],       set: (s,v) => { shellMinR[s] = v; } },
+    { key: 'rd',   label: 'tan steer', min: 0,     max: 1.0,    step: 0.01,  fmt: v => v.toFixed(2),    get: s => shellRadialDamp[s], set: (s,v) => { shellRadialDamp[s] = v; } },
+  ];
+  const shellDevContainer = document.getElementById('shellDevSliders');
+  shellDevContainer.style.cssText = 'display:flex;flex-direction:row;gap:16px;align-items:flex-start;flex-wrap:wrap';
+  const _shellGroups = [];
+  for (let s = 0; s < 4; s++) {
+    const color = SHELL_COLORS[s];
+    const group = document.createElement('div');
+    group.dataset.shell = s;
+    group.style.cssText = `display:none;flex-direction:column;gap:2px;padding:4px 0 4px 8px;border-left:3px solid ${color}`;
+    const header = document.createElement('div');
+    header.style.cssText = `font-size:10px;font-weight:700;color:${color};letter-spacing:0.08em;margin-bottom:2px`;
+    header.textContent = `SHELL ${s}`;
+    group.appendChild(header);
+    for (const def of SHELL_SLIDER_DEFS) {
+      const row = document.createElement('div');
+      row.className = 'dev-row';
+      const valId = `slShell_${def.key}${s}Val`;
+      const slId  = `slShell_${def.key}${s}`;
+      const initVal = def.get(s);
+      row.innerHTML = `<label>${def.label}</label><input type="range" id="${slId}" min="${def.min}" max="${def.max}" step="${def.step}" value="${initVal}"><span class="dev-val" id="${valId}">${def.fmt(initVal)}</span>`;
+      group.appendChild(row);
+      const sl = row.querySelector('input');
+      const vspan = row.querySelector('.dev-val');
+      sl.addEventListener('input', () => {
+        const v = parseFloat(sl.value);
+        def.set(s, v);
+        vspan.textContent = def.fmt(v);
+      });
+    }
+    shellDevContainer.appendChild(group);
+    _shellGroups.push(group);
+  }
+
+  syncShellDevSliders = function() {
+    for (let s = 0; s < 4; s++) {
+      const occupied = electrons.some(e => e.shell === s);
+      _shellGroups[s].style.display = occupied ? 'flex' : 'none';
+    }
+    syncOrb3dShellSliders();
+  };
+  syncShellDevSliders();
+  // ─── Element picker grid ─────────────────────────────────────────────────────
+  const ELEM_DATA = Object.entries(ELEMENT_DATA)
+    .filter(([,d]) => d.col > 0)
+    .map(([z,d]) => [+z, d.sym, d.name, d.cat, d.col, d.row]);
+  const elemGrid = document.getElementById('elemGrid');
+  for (const [z, sym, name, cat, col, row] of ELEM_DATA) {
+    const btn = document.createElement('button');
+    btn.className = `elem-btn ${cat}`;
+    btn.dataset.z = z;
+    btn.style.gridColumn = col;
+    btn.style.gridRow = row;
+    btn.innerHTML = `<span class="el-num">${z}</span><span class="el-sym">${sym}</span>`;
+    btn.addEventListener('click', () => {
+      const _prevSr = _fvEffectiveSr;
+      const _prevAngle = (selectedElectronIdx >= 0 && selectedElectronIdx < electrons.length)
+        ? electrons[selectedElectronIdx].angle : null;
+      setNucleusFromZ(z);
+      syncNeutralElectrons();
+      autoSelectOuterShell(_prevSr, _prevAngle);
+      applyAutoScale();
+      syncShellDevSliders();
+      syncElemBtnActive();
+      syncFormButtons();
+    });
+    elemGrid.appendChild(btn);
+  }
+  syncElemBtnActive();
+
+  const _pSlider = document.getElementById('protonSlider');
+  function _stepProton(delta) {
+    const v = Math.max(0, Math.min(82, parseInt(_pSlider.value) + delta));
+    _pSlider.value = v;
+    const _prevSr = _fvEffectiveSr;
+    const _prevAngle = (selectedElectronIdx >= 0 && selectedElectronIdx < electrons.length)
+      ? electrons[selectedElectronIdx].angle : null;
+    setNucleusFromZ(v);
+    syncNeutralElectrons();
+    autoSelectOuterShell(_prevSr, _prevAngle);
+    syncShellDevSliders();
+    syncElemBtnActive();
+    syncFormButtons();
+  }
+  _pSlider.addEventListener('input', function () {
+    const _prevSr = _fvEffectiveSr;
+    const _prevAngle = (selectedElectronIdx >= 0 && selectedElectronIdx < electrons.length)
+      ? electrons[selectedElectronIdx].angle : null;
+    setNucleusFromZ(parseInt(this.value));
+    syncNeutralElectrons();
+    autoSelectOuterShell(_prevSr, _prevAngle);
+    syncShellDevSliders();
+    syncElemBtnActive();
+    syncFormButtons();
+  });
+  const _protonDown = document.getElementById('protonDown');
+  const _protonUp = document.getElementById('protonUp');
+  if (_protonDown) _protonDown.addEventListener('click', () => _stepProton(-1));
+  if (_protonUp)   _protonUp.addEventListener('click',   () => _stepProton(+1));
+}());
+
+// ─── Energy model ─────────────────────────────────────────────────────────────
+function computeEnergy(frac) { return { ke: 0.5, eie: 0.5 }; }
+
+
+function drawEnergyGraph() {
+  const W = egCanvas.width, H = egCanvas.height;
+  const PAD = 8;
+  const gH  = H - PAD * 2;
+  const zs = egZoomStart, ze = egZoomEnd, zLen = ze - zs;
+
+  egCtx.clearRect(0, 0, W, H);
+
+  const LIGHT = document.body.classList.contains('screenshot-mode');
+  const _gridCol  = LIGHT ? 'rgba(0,0,0,0.10)' : 'rgba(255,255,255,0.06)';
+const _axisCol  = LIGHT ? 'rgba(0,0,0,0.55)' : 'rgba(0,200,255,0.35)';
+  const _axisGlow = LIGHT ? 'rgba(0,0,0,0)'    : 'rgba(0,200,255,0.5)';
+  const _ieCol    = LIGHT ? '#777'             : '#7b6fff';
+  const _ieGlow   = LIGHT ? 'rgba(0,0,0,0)'    : 'rgba(120,100,255,0.9)';
+  const _keCol    = LIGHT ? '#000'             : '#ff3a6e';
+  const _keGlow   = LIGHT ? 'rgba(0,0,0,0)'    : 'rgba(255,45,100,0.9)';
+  const _selFill  = LIGHT ? 'rgba(0,0,0,0.08)' : 'rgba(120,100,255,0.12)';
+  const _selStk   = LIGHT ? 'rgba(0,0,0,0.4)'  : 'rgba(120,100,255,0.6)';
+
+  // Faint horizontal grid at 25 / 50 / 75%
+  egCtx.strokeStyle = _gridCol;
+  egCtx.lineWidth = 1;
+  for (let i = 1; i <= 3; i++) {
+    const y = PAD + gH * (1 - i / 4);
+    egCtx.beginPath(); egCtx.moveTo(0, y); egCtx.lineTo(W, y); egCtx.stroke();
+  }
+
+
+  // Advance high-water mark then compute reveal and cursor pixels
+  maxRevealedFrac = Math.max(maxRevealedFrac, currentScrubFrac);
+  const revealFrac = Math.max(zs, Math.min(ze, maxRevealedFrac));
+  const revealPx   = Math.round((revealFrac - zs) / zLen * (W - 1));
+  const curFrac = Math.max(zs, Math.min(ze, currentScrubFrac));
+  const curPx   = Math.round((curFrac - zs) / zLen * (W - 1));
+
+  // Bottom axis — always visible
+  egCtx.save();
+  egCtx.shadowBlur  = LIGHT ? 0 : 6;
+  egCtx.shadowColor = _axisGlow;
+  egCtx.strokeStyle = _axisCol;
+  egCtx.lineWidth   = 1;
+  egCtx.beginPath(); egCtx.moveTo(0, H - PAD); egCtx.lineTo(W, H - PAD); egCtx.stroke();
+  egCtx.restore();
+
+  // Neon line: full graph always shown, cursor marks current position
+  function plotLine(color, glowColor, getVal, dash = []) {
+    const ys = new Float32Array(W);
+    for (let px = 0; px < W; px++) {
+      const frac = zs + (px / (W - 1)) * zLen;
+      ys[px] = PAD + gH * (1 - getVal(computeEnergy(frac)));
+    }
+    function strokeSeg(fromPx, toPx, lw, blur, alpha) {
+      if (fromPx > toPx) return;
+      egCtx.save();
+      egCtx.setLineDash(dash);
+      egCtx.globalAlpha = alpha;
+      egCtx.shadowBlur  = blur;
+      egCtx.shadowColor = glowColor;
+      egCtx.strokeStyle = color;
+      egCtx.lineWidth   = lw;
+      egCtx.beginPath();
+      for (let px = fromPx; px <= toPx; px++) {
+        if (px === fromPx) egCtx.moveTo(px, ys[px]); else egCtx.lineTo(px, ys[px]);
+      }
+      egCtx.stroke();
+      egCtx.restore();
+    }
+    // Draw up to the high-water mark — traces live, stays drawn after scrub
+    strokeSeg(0, revealPx, 8,  28, 0.25);
+    strokeSeg(0, revealPx, 3,  10, 0.55);
+    strokeSeg(0, revealPx, 1.5, 0, 1.00);
+  }
+
+  plotLine(_ieCol, _ieGlow, e => e.eie, [5, 4]);  // Energy in Fields
+  plotLine(_keCol, _keGlow, e => e.ke);            // Energy of Motion
+
+  // Drag-to-zoom selection overlay
+  if (egDragStartPx !== null && egDragCurPx !== null) {
+    const x0 = Math.min(egDragStartPx, egDragCurPx);
+    const x1 = Math.max(egDragStartPx, egDragCurPx);
+    egCtx.fillStyle   = _selFill;
+    egCtx.fillRect(x0, 0, x1 - x0, H);
+    egCtx.strokeStyle = _selStk;
+    egCtx.lineWidth   = 1;
+    egCtx.strokeRect(x0, 0, x1 - x0, H);
+  }
+
+  // Cursor — neon white with glow (black in light mode)
+  const cx = curPx;
+  egCtx.save();
+  egCtx.shadowBlur  = LIGHT ? 0 : 8;
+  egCtx.shadowColor = LIGHT ? 'rgba(0,0,0,0)' : 'rgba(255,255,255,0.7)';
+  egCtx.strokeStyle = LIGHT ? 'rgba(0,0,0,0.75)' : 'rgba(255,255,255,0.85)';
+  egCtx.lineWidth   = 1;
+  egCtx.beginPath(); egCtx.moveTo(cx, 0); egCtx.lineTo(cx, H); egCtx.stroke();
+  egCtx.restore();
+}
+
+// ─── Orbit 3D: click to pause/resume, drag to rotate ────────────────────────
+function _orb3dRotateY(dTheta) {
+  if (!animParent) return;
+  const cx = animParent.cx, c = Math.cos(dTheta), s = Math.sin(dTheta);
+  for (const p of animParent.particles) {
+    const lx = p.x - cx, lz = p.z || 0;
+    p.x = cx + lx * c + lz * s;
+    p.z = -lx * s + lz * c;
+  }
+}
+function _orb3dRotateX(dTheta) {
+  if (!animParent) return;
+  const cy = animParent.cy, c = Math.cos(dTheta), s = Math.sin(dTheta);
+  for (const p of animParent.particles) {
+    const ly = p.y - cy, lz = p.z || 0;
+    p.y = cy + ly * c + lz * s;
+    p.z = -ly * s + lz * c;
+  }
+}
+
+canvas.addEventListener('pointerdown', e => {
+  if (e.pointerType === 'touch') return;
+  const isPan = e.button === 2 || (e.button === 0 && e.shiftKey);
+  if (isPan) {
+    _panDragState = { lastX: e.clientX, lastY: e.clientY };
+    canvas.setPointerCapture(e.pointerId);
+    canvas.style.cursor = 'grabbing';
+    e.preventDefault();
+    return;
+  }
+  if (currentTab === 'orbit3d' && e.button === 0) {
+    orb3dDragState = { lastX: e.clientX, lastY: e.clientY, moved: false };
+    canvas.setPointerCapture(e.pointerId);
+    canvas.style.cursor = 'grabbing';
+    e.preventDefault();
+  }
+});
+canvas.addEventListener('pointermove', e => {
+  if (e.pointerType === 'touch') return;
+  if (_panDragState) {
+    panOffsetX += e.clientX - _panDragState.lastX;
+    panOffsetY += e.clientY - _panDragState.lastY;
+    _panDragState.lastX = e.clientX;
+    _panDragState.lastY = e.clientY;
+    draw();
+    return;
+  }
+  if (orb3dDragState && currentTab === 'orbit3d') {
+    const dx = e.clientX - orb3dDragState.lastX;
+    const dy = e.clientY - orb3dDragState.lastY;
+    orb3dDragState.lastX = e.clientX;
+    orb3dDragState.lastY = e.clientY;
+    _orb3dApplyDrag(dx, dy);
+  }
+});
+canvas.addEventListener('pointerup', e => {
+  if (e.pointerType === 'touch') return;
+  if (_panDragState) {
+    _panDragState = null;
+    canvas.releasePointerCapture(e.pointerId);
+    canvas.style.cursor = '';
+    return;
+  }
+  if (orb3dDragState) {
+    canvas.releasePointerCapture(e.pointerId);
+    if (orb3dDragState.moved) orb3dPaused = false;
+    else orb3dPaused = !orb3dPaused;
+    orb3dDragState = null;
+    canvas.style.cursor = currentTab === 'orbit3d' ? 'grab' : '';
+  }
+});
+canvas.addEventListener('contextmenu', e => e.preventDefault());
+canvas.addEventListener('touchstart', e => {
+  if (currentTab !== 'orbit3d') return;
+  const t = e.touches[0];
+  orb3dDragState = { lastX: t.clientX, lastY: t.clientY, moved: false };
+  e.preventDefault();
+}, { passive: false });
+
+function _orb3dApplyDrag(dx, dy) {
+  if (Math.abs(dx) > 1 || Math.abs(dy) > 1) {
+    orb3dDragState.moved = true;
+    orb3dPaused = true;
+  }
+  const radPerPx = Math.PI * 2 / 600;
+  const dAZ = dx * radPerPx, dEL = dy * radPerPx;
+  orb3dAZ += dAZ;
+  orb3dEL = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, orb3dEL + dEL));
+  _orb3dRotateY(dAZ);
+  _orb3dRotateX(dEL);
+}
+window.addEventListener('touchmove', e => {
+  if (!orb3dDragState || currentTab !== 'orbit3d') return;
+  const t = e.touches[0];
+  const dx = t.clientX - orb3dDragState.lastX;
+  const dy = t.clientY - orb3dDragState.lastY;
+  orb3dDragState.lastX = t.clientX;
+  orb3dDragState.lastY = t.clientY;
+  _orb3dApplyDrag(dx, dy);
+  e.preventDefault();
+}, { passive: false });
+
+window.addEventListener('touchend', () => {
+  if (!orb3dDragState) return;
+  if (orb3dDragState.moved) orb3dPaused = false;
+  else orb3dPaused = !orb3dPaused;
+  orb3dDragState = null;
+});
+
+// ─── Canvas click: select electron or shell for force display ────────────────
+canvas.addEventListener('click', e => {
+  if (arrowMode === 0 || currentTab !== 'shells' || !animParent || !electrons.length) return;
+  const rect = canvas.getBoundingClientRect();
+  const sx = e.clientX - rect.left, sy = e.clientY - rect.top;
+
+  // Convert screen → world
+  const _W = canvas.width, _H = canvas.height;
+  const _tbH = document.getElementById('toolbar').offsetHeight;
+  const _sbEl = document.getElementById('scrubBar');
+  const _sbH  = _sbEl.classList.contains('visible') ? _sbEl.offsetHeight : 0;
+  const _centerY = (_tbH + _H - _sbH) / 2;
+  const _camX2 = _W / 2 + getCameraShiftX() + panOffsetX;
+  const wx = (sx - _camX2) / viewZoom + _W / 2;
+  const wy = (sy - (_centerY + panOffsetY)) / viewZoom + _H / 2;
+
+  const cx = animParent.cx, cy = animParent.cy;
+
+  if (fvShellMode) {
+    // Hit test: distance from nucleus vs each occupied shell's radius
+    const distFromNucleus = Math.sqrt((wx - cx) ** 2 + (wy - cy) ** 2);
+    const HIT_R = 28 / viewZoom;
+    const occupied = [...new Set(electrons.map(e => e.shell))];
+    let best = -1, bestD = HIT_R;
+    for (const s of occupied) {
+      const d = Math.abs(distFromNucleus - getShellRadius(s));
+      if (d < bestD) { bestD = d; best = s; }
+    }
+    if (best >= 0 && best !== selectedShell && selectedShell >= 0 && animParent) {
+      _fvPrevSr    = getShellRadius(selectedShell);
+      _fvZoomStart = performance.now();
+    }
+    const _prevAngle = (selectedElectronIdx >= 0 && selectedElectronIdx < electrons.length)
+      ? electrons[selectedElectronIdx].angle : null;
+    selectedShell = best;
+    if (best >= 0) selectedElectronIdx = _prevAngle != null
+      ? _closestInShell(best, _prevAngle)
+      : _rightmostInShell(best);
+  } else {
+    const distFromNucleus = Math.sqrt((wx - cx) ** 2 + (wy - cy) ** 2);
+    const SHELL_HIT_R = 40 / viewZoom;
+    const occupied = [...new Set(electrons.map(e => e.shell))];
+    let clickedShell = -1, bestShellD = SHELL_HIT_R;
+    for (const s of occupied) {
+      const d = Math.abs(distFromNucleus - getShellRadius(s));
+      if (d < bestShellD) { bestShellD = d; clickedShell = s; }
+    }
+    if (clickedShell >= 0) {
+      let best = -1, bestD2 = Infinity;
+      for (let i = 0; i < electrons.length; i++) {
+        if (electrons[i].shell !== clickedShell) continue;
+        const r = getShellRadius(clickedShell);
+        const ex = cx + Math.cos(electrons[i].angle) * r;
+        const ey = cy + Math.sin(electrons[i].angle) * r;
+        const d2 = (wx - ex) ** 2 + (wy - ey) ** 2;
+        if (d2 < bestD2) { bestD2 = d2; best = i; }
+      }
+      selectedElectronIdx = best;
+      _fvLabelNucSmooth = null; _fvLabelRepSmooth = null; _fvLabelNetSmooth = null;
+      _fvValueNucSmooth = null; _fvValueRepSmooth = null;
+    }
+  }
+
+  syncForceVizVisibility();
+  draw();
+});
+
+// ─── Energy graph drag-to-zoom ────────────────────────────────────────────────
+egCanvas.addEventListener('mousedown', e => {
+  egDragStartPx = e.offsetX;
+  egDragCurPx   = e.offsetX;
+  e.preventDefault();
+});
+egCanvas.addEventListener('mousemove', e => {
+  if (egDragStartPx === null) return;
+  egDragCurPx = e.offsetX;
+  drawEnergyGraph();
+});
+egCanvas.addEventListener('mouseup', e => {
+  if (egDragStartPx === null) return;
+  const x0 = Math.min(egDragStartPx, e.offsetX);
+  const x1 = Math.max(egDragStartPx, e.offsetX);
+  egDragStartPx = null; egDragCurPx = null;
+  const W = egCanvas.width;
+  if (x1 - x0 < 4) { drawEnergyGraph(); return; }  // too small — ignore
+  const prevStart = egZoomStart, zLen = egZoomEnd - egZoomStart;
+  egZoomStart = prevStart + (x0 / W) * zLen;
+  egZoomEnd   = prevStart + (x1 / W) * zLen;
+  drawEnergyGraph();
+  updateGraphBtn();
+});
+egCanvas.addEventListener('mouseleave', e => {
+  if (egDragStartPx !== null) { egDragStartPx = null; egDragCurPx = null; drawEnergyGraph(); }
+});
+egCanvas.addEventListener('dblclick', () => {
+  egZoomStart = 0; egZoomEnd = 1;
+  drawEnergyGraph();
+  updateGraphBtn();
+});
+
+// ─── Themes ───────────────────────────────────────────────────────────────────
+const THEMES = {
+  A: {
+    accent1:'#ff2d78', accent1dim:'rgba(255,45,120,0.25)', accent1glow:'rgba(255,45,120,0.55)',
+    accent2:'#1a6eff', accent2dim:'rgba(26,110,255,0.18)',  accent2glow:'rgba(26,110,255,0.45)',
+    uibg:'rgba(8,6,24,0.38)', uiborder:'rgba(255,255,255,0.07)',
+    textdim:'rgba(220,215,255,0.55)', textbright:'rgba(240,235,255,0.92)',
+    bg:'#05040f',
+  },
+  B: {
+    accent1:'#ff2d78', accent1dim:'rgba(255,45,120,0.22)', accent1glow:'rgba(255,45,120,0.5)',
+    accent2:'#bd00ff', accent2dim:'rgba(189,0,255,0.18)',  accent2glow:'rgba(189,0,255,0.42)',
+    uibg:'rgba(8,4,22,0.42)', uiborder:'rgba(189,0,255,0.14)',
+    textdim:'rgba(230,200,255,0.52)', textbright:'rgba(248,232,255,0.92)',
+    bg:'#05030f',
+  },
+  C: {
+    accent1:'#ff2d78', accent1dim:'rgba(255,45,120,0.22)', accent1glow:'rgba(255,45,120,0.5)',
+    accent2:'#00f5e0', accent2dim:'rgba(0,245,224,0.15)',  accent2glow:'rgba(0,245,224,0.4)',
+    uibg:'rgba(6,4,20,0.40)', uiborder:'rgba(255,45,120,0.12)',
+    textdim:'rgba(220,210,255,0.52)', textbright:'rgba(245,235,255,0.92)',
+    bg:'#04030e',
+  },
+};
+
+function _hexToRgb(hex) {
+  const h = hex.replace('#', '');
+  return [parseInt(h.slice(0,2),16), parseInt(h.slice(2,4),16), parseInt(h.slice(4,6),16)];
+}
+
+function applyTheme(key) {
+  const t = THEMES[key];
+  _themeGridRgb = _hexToRgb(t.accent2);
+  const r = document.documentElement.style;
+  r.setProperty('--accent1',      t.accent1);
+  r.setProperty('--accent1-dim',  t.accent1dim);
+  r.setProperty('--accent1-glow', t.accent1glow);
+  r.setProperty('--accent2',      t.accent2);
+  r.setProperty('--accent2-dim',  t.accent2dim);
+  r.setProperty('--accent2-glow', t.accent2glow);
+  r.setProperty('--ui-bg',        t.uibg);
+  r.setProperty('--ui-border',    t.uiborder);
+  r.setProperty('--text-dim',     t.textdim);
+  r.setProperty('--text-bright',  t.textbright);
+  document.body.style.background = t.bg;
+  document.body.classList.remove('screenshot-mode');
+  document.getElementById('themeLight').classList.remove('active');
+  document.querySelectorAll('.theme-btn:not(#themeLight):not([data-theme="L"])').forEach(b => b.classList.remove('active'));
+  document.getElementById('theme'+key).classList.add('active');
+  draw();
+}
+document.getElementById('themeA').addEventListener('click', () => applyTheme('A'));
+document.getElementById('themeB').addEventListener('click', () => applyTheme('B'));
+document.getElementById('themeC').addEventListener('click', () => applyTheme('C'));
+function getBgColor() { return document.getElementById('bgColorPicker').value; }
+document.getElementById('bgColorPicker').addEventListener('input', function() {
+  document.documentElement.style.setProperty('--bg-color', this.value);
+  draw();
+});
+document.getElementById('themeLight').addEventListener('click', () => {
+  const on = document.body.classList.toggle('screenshot-mode');
+  document.getElementById('themeLight').classList.toggle('active', on);
+  draw();
+});
+applyTheme('A');
+
+// ─── Init ─────────────────────────────────────────────────────────────────────
+syncTabButtons();
+initNuclei();
+
+// Startup benchmark — measure actual gradient render cost and set initial quality.
+// Thresholds are per 100 particles; the full nucleus is ~220 so multiply by ~2.2
+// to project real frame cost.
+//   < 3ms / 100p → hi-res   (< ~7ms projected — fine at 60fps)
+//   3–6ms / 100p → detailed (~7–13ms projected — reduced effects)
+//   > 6ms / 100p → simple   (> ~13ms projected — minimal rendering)
+(function _startupBenchmark() {
+  const ms = _runPerfBenchmark();
+  if (ms > 6) {
+    const hiOpt = document.querySelector('#qualitySelect option[value="hi-res"]');
+    if (hiOpt) hiOpt.remove();
+    _applyQuality('simple');
+  } else if (ms > 3) {
+    _applyQuality('detailed');
+  }
+  // else stays 'hi-res' (default)
+}());
+
+setNucleusFromZ(10);
+syncNeutralElectrons();
+applyAutoScale();
+syncShellDevSliders();
+syncElemBtnActive();
+syncFormButtons();
+arrowMode = 0;
+fvShellMode = true;
+document.querySelectorAll('[data-fvmode]').forEach(b => b.classList.toggle('active', b.dataset.fvmode === 'shell'));
+currentTab = 'shells';
+syncTabButtons();
+document.getElementById('showElectric').checked = true;
+document.getElementById('showElectric').dispatchEvent(new Event('change'));
+syncForceVizVisibility();
+autoSelectOuterShell();
+draw();
+if (!idleParticleRAF) idleParticleLoop();
+
+// ── Bug report button ─────────────────────────────────────────────────────
+function getBugState() {
+  return {
+    sim:       'electrons',
+    nucleus:   selectedNucleusKey,
+    viewZoom:  +viewZoom.toFixed(3),
+    actionLog: actionLog.slice(),
+  };
+}
+document.getElementById('bugReportBtn').addEventListener('click', e => {
+  e.preventDefault();
+  const state = encodeURIComponent(JSON.stringify(getBugState()));
+  const url   = `https://ghostoutfit.github.io/protons/dev/bug-report.html?sim=electrons&sourceUrl=${encodeURIComponent(location.href)}&state=${state}`;
+  document.getElementById('bugModalFrame').src = url;
+  document.getElementById('bugModal').style.display = 'flex';
+});
+function closeBugModal() {
+  document.getElementById('bugModal').style.display = 'none';
+  document.getElementById('bugModalFrame').src = 'about:blank';
+}
+document.getElementById('bugModal')?.addEventListener('click', e => {
+  if (e.target === document.getElementById('bugModal')) closeBugModal();
+});
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape' && document.getElementById('bugModal').style.display === 'flex') closeBugModal();
+});
+
+// Secret: typing "itunes" reveals the iTunes Visualizer tab
+(function() {
+  const secret = 'itunes';
+  let buf = '';
+  document.addEventListener('keydown', e => {
+    if (e.key.length !== 1) return;  // ignore Tab, Escape, ArrowUp, etc.
+    buf = (buf + e.key.toLowerCase()).slice(-secret.length);
+    if (buf === secret) {
+      const btn = document.getElementById('trailsTabBtn');
+      if (btn) btn.style.display = 'block';
+    }
+  });
+})();
+
+</script>
+
+<div id="bugModal" style="display:none;position:fixed;inset:0;z-index:10000;background:rgba(2,1,12,0.85);backdrop-filter:blur(6px);align-items:center;justify-content:center;">
+  <div style="position:relative;width:660px;max-width:94vw;height:88vh;background:#05040f;border:1px solid rgba(26,110,255,0.35);border-radius:14px;box-shadow:0 0 0 1px rgba(26,110,255,0.1),0 8px 60px rgba(0,0,0,0.8),0 0 40px rgba(26,110,255,0.12);display:flex;flex-direction:column;overflow:hidden;">
+    <button onclick="closeBugModal()" style="position:absolute;top:10px;right:12px;z-index:1;background:rgba(26,110,255,0.12);border:1px solid rgba(26,110,255,0.3);color:#8090c0;border-radius:6px;width:28px;height:28px;font-size:16px;cursor:pointer;line-height:1;padding:0;" onmouseenter="this.style.background='rgba(26,110,255,0.28)'" onmouseleave="this.style.background='rgba(26,110,255,0.12)'">✕</button>
+    <iframe id="bugModalFrame" src="about:blank" style="flex:1;border:none;border-radius:14px;background:#05040f;"></iframe>
+  </div>
+</div>
+
+
+</body>
+</html>
