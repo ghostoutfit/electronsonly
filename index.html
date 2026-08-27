@@ -3879,12 +3879,10 @@ document.getElementById('showForceValuesCheckbox').addEventListener('change', fu
 
 // ─── Force viz panel default position ────────────────────────────────────────
 function _fvDefaultPosition() {
-  const tbH = document.getElementById('toolbar').offsetHeight;
-  const gap = 10;
-  forceVizPanelEl.style.top    = (tbH + gap) + 'px';
-  forceVizPanelEl.style.height = (window.innerHeight - tbH - gap * 2) + 'px';
-  forceVizPanelEl.style.right  = '20px';
-  forceVizPanelEl.style.left   = '';
+  const panH = forceVizPanelEl.offsetHeight || 512;
+  forceVizPanelEl.style.top   = Math.round((window.innerHeight - panH) / 2) + 'px';
+  forceVizPanelEl.style.right = '20px';
+  forceVizPanelEl.style.left  = '';
 }
 window.addEventListener('resize', () => {
   if (forceVizPanelEl.style.display !== 'none') {
