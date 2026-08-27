@@ -1827,7 +1827,7 @@ function drawOrbit3D(ctx) {
         gc.shadowBlur  = 0;
       } else {
         // Detailed / Simple — plain, no bloom (CPU-safe)
-        gc.strokeStyle = `rgba(${_gr},${_gg},${_gb},0.18)`;
+        gc.strokeStyle = `rgba(${_gr},${_gg},${_gb},0.38)`;
         gc.lineWidth   = 1.4;
         _linePath(); gc.stroke();
 
@@ -2714,66 +2714,83 @@ function _drawGrid(ctx, nucSX, nucSY, W, H, tbH, zoom) {
 
   ctx.save();
 
+  const majorLW = tron ? Math.max(0.5, 1.5 * Math.pow(zoom, 0.35)) : 1;
+
+  // Shared: draw major lines as a batched path (square or radial), then stroke N times
+  const _strokeMajor = (alpha, lw, blur) => {
+    ctx.shadowColor = glowColor;
+    ctx.shadowBlur  = blur;
+    ctx.strokeStyle = `rgba(${gr},${gg},${gb},${alpha})`;
+    ctx.lineWidth   = lw;
+    ctx.stroke();
+    ctx.shadowBlur  = 0;
+  };
+
   if (gridType === 'square') {
-    // Minor lines — offset so lines always pass through the nucleus screen pos
-    ctx.strokeStyle = minorColor;
-    ctx.lineWidth   = 1;
+    // Minor lines — single batched stroke
     const x0minor = ((nucSX % minor) + minor) % minor;
     const y0minor = ((nucSY % minor) + minor) % minor;
+    ctx.strokeStyle = minorColor;
+    ctx.lineWidth   = 1;
+    ctx.beginPath();
     for (let x = x0minor; x <= W; x += minor) {
-      if (Math.round((x - nucSX) / minor) % sub === 0) continue; // skip majors
-      ctx.beginPath(); ctx.moveTo(x, tbH); ctx.lineTo(x, H); ctx.stroke();
+      if (Math.round((x - nucSX) / minor) % sub === 0) continue;
+      ctx.moveTo(x, tbH); ctx.lineTo(x, H);
     }
     for (let y = y0minor; y <= H; y += minor) {
       if (y < tbH) continue;
       if (Math.round((y - nucSY) / minor) % sub === 0) continue;
-      ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke();
+      ctx.moveTo(0, y); ctx.lineTo(W, y);
     }
+    ctx.stroke();
 
-    // Major lines — width scales sub-proportionally with zoom (narrower when zoomed out)
-    const majorLW = tron ? Math.max(0.5, 1.5 * Math.pow(zoom, 0.35)) : 1;
-    ctx.strokeStyle = majorColor;
-    ctx.lineWidth   = majorLW;
-    if (tron) { ctx.shadowColor = glowColor; ctx.shadowBlur = glowBlur; }
+    // Major lines — build path once, stroke multiple times for bloom
     const x0major = ((nucSX % major) + major) % major;
     const y0major = ((nucSY % major) + major) % major;
-    for (let x = x0major; x <= W; x += major) {
-      ctx.beginPath(); ctx.moveTo(x, tbH); ctx.lineTo(x, H); ctx.stroke();
+    ctx.beginPath();
+    for (let x = x0major; x <= W; x += major) { ctx.moveTo(x, tbH); ctx.lineTo(x, H); }
+    for (let y = y0major; y <= H; y += major) { if (y < tbH) continue; ctx.moveTo(0, y); ctx.lineTo(W, y); }
+
+    if (_quality === 'hi-res') {
+      _strokeMajor(majorAlpha * 0.30, majorLW * 2.8, 26);
+      _strokeMajor(majorAlpha * 0.60, majorLW * 1.2, 11);
+      _strokeMajor(majorAlpha,        majorLW,        4);
+    } else {
+      _strokeMajor(majorAlpha, majorLW, glowBlur);
     }
-    for (let y = y0major; y <= H; y += major) {
-      if (y < tbH) continue;
-      ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke();
-    }
-    ctx.shadowBlur = 0;
 
   } else {
-    // Radial — concentric rings + spokes centered on nucleus screen pos
+    // Radial — concentric rings + spokes
     const maxR = Math.hypot(Math.max(nucSX, W - nucSX), Math.max(nucSY - tbH, H - nucSY));
 
-    // Minor rings
+    // Minor rings — single batched stroke (moveTo before each arc prevents connecting lines)
     ctx.strokeStyle = minorColor;
     ctx.lineWidth   = 1;
+    ctx.beginPath();
     for (let r = minor; r <= maxR; r += minor) {
       if (Math.round(r / minor) % sub === 0) continue;
-      ctx.beginPath(); ctx.arc(nucSX, nucSY, r, 0, Math.PI * 2); ctx.stroke();
+      ctx.moveTo(nucSX + r, nucSY); ctx.arc(nucSX, nucSY, r, 0, Math.PI * 2);
     }
+    ctx.stroke();
 
-    // Major rings + spokes — sub-proportional zoom response on line width
-    const majorLW = tron ? Math.max(0.5, 1.5 * Math.pow(zoom, 0.35)) : 1;
-    ctx.strokeStyle = majorColor;
-    ctx.lineWidth   = majorLW;
-    if (tron) { ctx.shadowColor = glowColor; ctx.shadowBlur = glowBlur; }
+    // Major rings + spokes — build path once, stroke multiple times for bloom
+    ctx.beginPath();
     for (let r = major; r <= maxR; r += major) {
-      ctx.beginPath(); ctx.arc(nucSX, nucSY, r, 0, Math.PI * 2); ctx.stroke();
+      ctx.moveTo(nucSX + r, nucSY); ctx.arc(nucSX, nucSY, r, 0, Math.PI * 2);
     }
     for (let deg = 0; deg < 360; deg += 30) {
       const rad = deg * Math.PI / 180;
-      ctx.beginPath();
       ctx.moveTo(nucSX, nucSY);
       ctx.lineTo(nucSX + maxR * Math.cos(rad), nucSY + maxR * Math.sin(rad));
-      ctx.stroke();
     }
-    ctx.shadowBlur = 0;
+
+    if (_quality === 'hi-res') {
+      _strokeMajor(majorAlpha * 0.30, majorLW * 2.8, 26);
+      _strokeMajor(majorAlpha * 0.60, majorLW * 1.2, 11);
+      _strokeMajor(majorAlpha,        majorLW,        4);
+    } else {
+      _strokeMajor(majorAlpha, majorLW, glowBlur);
+    }
   }
 
   ctx.restore();
