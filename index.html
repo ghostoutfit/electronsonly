@@ -1763,46 +1763,78 @@ function drawOrbit3D(ctx) {
       _gridOC = new OffscreenCanvas(W, H);
       const gc = _gridOC.getContext('2d');
 
-      // Floor grid lines — hi-res gets a bloom pass; detailed/simple stay plain for CPU
-      if (_quality === 'hi-res') {
-        gc.shadowColor = `rgba(${_gr},${_gg},${_gb},0.55)`;
-        gc.shadowBlur  = 8;
-      }
-      gc.strokeStyle = `rgba(${_gr},${_gg},${_gb},0.18)`;
-      gc.lineWidth   = 1.4;
-      gc.beginPath();
-      for (let i = -_extPm; i <= _extPm; i += _step) {
-        if (i === 0) continue;
-        const [gx0,gy0] = proj3D(i, 0, -_extPm, _gScale);
-        const [gx1,gy1] = proj3D(i, 0,  _extPm, _gScale);
-        gc.moveTo(gx0,gy0); gc.lineTo(gx1,gy1);
-        const [gx2,gy2] = proj3D(-_extPm, 0, i, _gScale);
-        const [gx3,gy3] = proj3D( _extPm, 0, i, _gScale);
-        gc.moveTo(gx2,gy2); gc.lineTo(gx3,gy3);
-      }
-      gc.stroke();
-      gc.shadowBlur = 0;
+      // Build line path once, reused for hi-res multi-pass bloom
+      const _linePath = () => {
+        gc.beginPath();
+        for (let i = -_extPm; i <= _extPm; i += _step) {
+          if (i === 0) continue;
+          const [gx0,gy0] = proj3D(i, 0, -_extPm, _gScale);
+          const [gx1,gy1] = proj3D(i, 0,  _extPm, _gScale);
+          gc.moveTo(gx0,gy0); gc.lineTo(gx1,gy1);
+          const [gx2,gy2] = proj3D(-_extPm, 0, i, _gScale);
+          const [gx3,gy3] = proj3D( _extPm, 0, i, _gScale);
+          gc.moveTo(gx2,gy2); gc.lineTo(gx3,gy3);
+        }
+      };
 
-      // Axes
       const axes = [
         [[-_extPm,0,0],[_extPm,0,0]],
         [[0,0,-_extPm],[0,0,_extPm]],
         [[0,-_extPm,0],[0,_extPm,0]],
       ];
+      const _axisPath = () => {
+        gc.beginPath();
+        for (const [[ax,ay,az],[bx,by,bz]] of axes) {
+          const [sx0,sy0] = proj3D(ax,ay,az, _gScale);
+          const [sx1,sy1] = proj3D(bx,by,bz, _gScale);
+          gc.moveTo(sx0,sy0); gc.lineTo(sx1,sy1);
+        }
+      };
+
       if (_quality === 'hi-res') {
-        gc.shadowColor = `rgba(${_gr},${_gg},${_gb},0.7)`;
-        gc.shadowBlur  = 10;
+        // Wide outer haze — big blur, low alpha
+        gc.shadowColor = `rgba(${_gr},${_gg},${_gb},1)`;
+        gc.shadowBlur  = 32;
+        gc.strokeStyle = `rgba(${_gr},${_gg},${_gb},0.10)`;
+        gc.lineWidth   = 2;
+        _linePath(); gc.stroke();
+
+        // Mid bloom
+        gc.shadowBlur  = 14;
+        gc.strokeStyle = `rgba(${_gr},${_gg},${_gb},0.28)`;
+        gc.lineWidth   = 1.2;
+        _linePath(); gc.stroke();
+
+        // Crisp core
+        gc.shadowBlur  = 4;
+        gc.strokeStyle = `rgba(${_gr},${_gg},${_gb},0.55)`;
+        gc.lineWidth   = 0.8;
+        _linePath(); gc.stroke();
+        gc.shadowBlur  = 0;
+
+        // Axes — wide haze
+        gc.shadowColor = `rgba(${_gr},${_gg},${_gb},1)`;
+        gc.shadowBlur  = 40;
+        gc.strokeStyle = `rgba(${_gr},${_gg},${_gb},0.25)`;
+        gc.lineWidth   = 3;
+        _axisPath(); gc.stroke();
+
+        // Axes — bright core
+        gc.shadowBlur  = 12;
+        gc.strokeStyle = `rgba(${_gr},${_gg},${_gb},0.95)`;
+        gc.lineWidth   = 1.5;
+        _axisPath(); gc.stroke();
+        gc.shadowBlur  = 0;
+      } else {
+        // Detailed / Simple — plain, no bloom (CPU-safe)
+        gc.strokeStyle = `rgba(${_gr},${_gg},${_gb},0.18)`;
+        gc.lineWidth   = 1.4;
+        _linePath(); gc.stroke();
+
+        gc.strokeStyle = `rgba(${_gr},${_gg},${_gb},0.80)`;
+        gc.lineWidth   = 1.5;
+        _axisPath(); gc.stroke();
       }
-      gc.strokeStyle = `rgba(${_gr},${_gg},${_gb},0.80)`;
-      gc.lineWidth   = 1.5;
-      gc.beginPath();
-      for (const [[ax,ay,az],[bx,by,bz]] of axes) {
-        const [sx0,sy0] = proj3D(ax,ay,az, _gScale);
-        const [sx1,sy1] = proj3D(bx,by,bz, _gScale);
-        gc.moveTo(sx0,sy0); gc.lineTo(sx1,sy1);
-      }
-      gc.stroke();
-      gc.shadowBlur = 0;
 
       _gridOCKey = _cacheKey;
     }
@@ -2698,9 +2730,10 @@ function _drawGrid(ctx, nucSX, nucSY, W, H, tbH, zoom) {
       ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke();
     }
 
-    // Major lines
+    // Major lines — width scales sub-proportionally with zoom (narrower when zoomed out)
+    const majorLW = tron ? Math.max(0.5, 1.5 * Math.pow(zoom, 0.35)) : 1;
     ctx.strokeStyle = majorColor;
-    ctx.lineWidth   = tron ? 1.5 : 1;
+    ctx.lineWidth   = majorLW;
     if (tron) { ctx.shadowColor = glowColor; ctx.shadowBlur = glowBlur; }
     const x0major = ((nucSX % major) + major) % major;
     const y0major = ((nucSY % major) + major) % major;
@@ -2725,9 +2758,10 @@ function _drawGrid(ctx, nucSX, nucSY, W, H, tbH, zoom) {
       ctx.beginPath(); ctx.arc(nucSX, nucSY, r, 0, Math.PI * 2); ctx.stroke();
     }
 
-    // Major rings + spokes
+    // Major rings + spokes — sub-proportional zoom response on line width
+    const majorLW = tron ? Math.max(0.5, 1.5 * Math.pow(zoom, 0.35)) : 1;
     ctx.strokeStyle = majorColor;
-    ctx.lineWidth   = tron ? 1.5 : 1;
+    ctx.lineWidth   = majorLW;
     if (tron) { ctx.shadowColor = glowColor; ctx.shadowBlur = glowBlur; }
     for (let r = major; r <= maxR; r += major) {
       ctx.beginPath(); ctx.arc(nucSX, nucSY, r, 0, Math.PI * 2); ctx.stroke();
