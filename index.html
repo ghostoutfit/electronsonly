@@ -810,7 +810,7 @@
     position: fixed;
     right: 20px;
     border-radius: 12px;
-    width: 424px;
+    width: 500px;
     height: 512px;
     background: rgba(8,6,24,0.90);
     border: 1px solid var(--accent2);
@@ -1728,8 +1728,13 @@ function drawOrbit3D(ctx) {
   ctx.translate(cx, cy);
   ctx.scale(viewZoom, viewZoom);
   ctx.translate(-W / 2, -H / 2);
-  if (showParticles) drawParticles(animParent.particles, 1);
-  else drawCloudOutline(animParent.cx, animParent.cy, animParent.sphereR);
+  if (showParticles) {
+    const _svFlat = _flatFill, _svQ = _quality;
+    if (_quality === 'hi-res') _flatFill = false;
+    else if (_quality === 'simple') _quality = 'detailed';
+    drawParticles(animParent.particles, 1);
+    _flatFill = _svFlat; _quality = _svQ;
+  } else drawCloudOutline(animParent.cx, animParent.cy, animParent.sphereR);
   ctx.restore();
 
   // 3D projection — orthographic, screen-space coords centered at (cx, cy)
@@ -1752,13 +1757,17 @@ function drawOrbit3D(ctx) {
     const _extPm  = Math.min(2000, Math.ceil(Math.hypot(W, H) / 2 / _gScale / _step) * _step);
     const [_gr, _gg, _gb] = _themeGridRgb;
 
-    // Cache key covers everything that affects grid geometry or color
-    const _cacheKey = `${W}|${H}|${cx.toFixed(1)}|${cy.toFixed(1)}|${_gScale.toFixed(4)}|${_gr},${_gg},${_gb}|${AZ.toFixed(4)}|${EL.toFixed(4)}`;
+    // Cache key covers everything that affects grid geometry, color, or quality tier
+    const _cacheKey = `${W}|${H}|${cx.toFixed(1)}|${cy.toFixed(1)}|${_gScale.toFixed(4)}|${_gr},${_gg},${_gb}|${AZ.toFixed(4)}|${EL.toFixed(4)}|${_quality}`;
     if (!_gridOC || _gridOCKey !== _cacheKey) {
       _gridOC = new OffscreenCanvas(W, H);
       const gc = _gridOC.getContext('2d');
 
-      // Floor grid lines — no shadow, plain alpha (shadow was the CPU cost)
+      // Floor grid lines — hi-res gets a bloom pass; detailed/simple stay plain for CPU
+      if (_quality === 'hi-res') {
+        gc.shadowColor = `rgba(${_gr},${_gg},${_gb},0.55)`;
+        gc.shadowBlur  = 8;
+      }
       gc.strokeStyle = `rgba(${_gr},${_gg},${_gb},0.18)`;
       gc.lineWidth   = 1.4;
       gc.beginPath();
@@ -1772,13 +1781,18 @@ function drawOrbit3D(ctx) {
         gc.moveTo(gx2,gy2); gc.lineTo(gx3,gy3);
       }
       gc.stroke();
+      gc.shadowBlur = 0;
 
-      // Axes — single pass, no bloom
+      // Axes
       const axes = [
         [[-_extPm,0,0],[_extPm,0,0]],
         [[0,0,-_extPm],[0,0,_extPm]],
         [[0,-_extPm,0],[0,_extPm,0]],
       ];
+      if (_quality === 'hi-res') {
+        gc.shadowColor = `rgba(${_gr},${_gg},${_gb},0.7)`;
+        gc.shadowBlur  = 10;
+      }
       gc.strokeStyle = `rgba(${_gr},${_gg},${_gb},0.80)`;
       gc.lineWidth   = 1.5;
       gc.beginPath();
@@ -1788,12 +1802,19 @@ function drawOrbit3D(ctx) {
         gc.moveTo(sx0,sy0); gc.lineTo(sx1,sy1);
       }
       gc.stroke();
+      gc.shadowBlur = 0;
 
       _gridOCKey = _cacheKey;
     }
 
-    // Single GPU blit — essentially free
-    ctx.drawImage(_gridOC, 0, 0);
+    // Hi-res: tiny sub-pixel jitter makes the grid feel alive; detailed/simple: static blit
+    if (_quality === 'hi-res') {
+      const jx = (Math.random() - 0.5) * 0.7;
+      const jy = (Math.random() - 0.5) * 0.7;
+      ctx.drawImage(_gridOC, jx, jy);
+    } else {
+      ctx.drawImage(_gridOC, 0, 0);
+    }
   }
 
   // Shell reference rings
@@ -2938,7 +2959,7 @@ function fvArrowOnCtx(c, fromX, fromY, nx, ny, len, color, lw, headLen) {
 // Horizontal camera shift so nucleus centers in the space left of the force panel.
 function getCameraShiftX() {
   if (arrowMode > 0 && currentTab === 'shells') {
-    const panelW = forceVizPanelEl.offsetWidth || 424;
+    const panelW = forceVizPanelEl.offsetWidth || 500;
     return -(panelW + 20) / 2;
   }
   return 0;
@@ -3586,7 +3607,13 @@ function draw() {
   ctx.translate(-_W / 2, -_H / 2);
 
   if (!showParticles) drawCloudOutline(animParent.cx, animParent.cy, animParent.sphereR);
-  if (showParticles) drawParticles(animParent.particles, 1);
+  if (showParticles) {
+    const _svFlat = _flatFill, _svQ = _quality;
+    if (_quality === 'hi-res') _flatFill = false;
+    else if (_quality === 'simple') _quality = 'detailed';
+    drawParticles(animParent.particles, 1);
+    _flatFill = _svFlat; _quality = _svQ;
+  }
 
   if (currentTab === 'trails') drawShellRings(ctx);
   if (currentTab === 'trails') drawElectrons(ctx);
