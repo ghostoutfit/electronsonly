@@ -810,7 +810,7 @@
     position: fixed;
     right: 20px;
     border-radius: 12px;
-    width: 500px;
+    width: 575px;
     height: 512px;
     background: rgba(8,6,24,0.90);
     border: 1px solid var(--accent2);
@@ -2228,17 +2228,28 @@ const COMMON_FORMS = {
   36: [['neutral', null]],
 };
 
+function _respaceAllShells() {
+  const shells = [...new Set(electrons.map(e => e.shell))];
+  for (const s of shells) _respaceShell(s);
+}
+
 function syncNeutralElectrons() {
   const target = Math.min(customZ, E_MAX_TOTAL);
+  const wasRemoving = electrons.length > target;
   while (electrons.length < target) addElectron();
   while (electrons.length > target) electrons.pop();
+  // addElectron already calls _respaceShell; after removal the remaining
+  // electrons may be clustered (d-fill spacing), so respace all shells.
+  if (wasRemoving) _respaceAllShells();
   updateElectronCount();
 }
 
 function setElectronCount(n) {
   const target = Math.min(n, E_MAX_TOTAL);
+  const wasRemoving = electrons.length > target;
   while (electrons.length < target) addElectron();
   while (electrons.length > target) electrons.pop();
+  if (wasRemoving) _respaceAllShells();
   updateElectronCount();
 }
 
@@ -2959,7 +2970,7 @@ function fvArrowOnCtx(c, fromX, fromY, nx, ny, len, color, lw, headLen) {
 // Horizontal camera shift so nucleus centers in the space left of the force panel.
 function getCameraShiftX() {
   if (arrowMode > 0 && currentTab === 'shells') {
-    const panelW = forceVizPanelEl.offsetWidth || 500;
+    const panelW = forceVizPanelEl.offsetWidth || 575;
     return -(panelW + 20) / 2;
   }
   return 0;
