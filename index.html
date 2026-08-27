@@ -122,8 +122,9 @@
     border: 1px solid rgba(238,255,0,0.22);
     border-radius: 5px;
     color: rgba(238,255,0,0.45);
-    font-size: 9px; font-weight: 700; letter-spacing: 1px;
+    font-size: 11px; font-weight: 700; letter-spacing: 1px;
     text-transform: uppercase; cursor: pointer; font-family: inherit;
+    min-width: 72px; text-align: center;
   }
   .form-btn.active {
     background: rgba(238,255,0,0.1);
@@ -875,16 +876,13 @@
     </div>
   </div>
   <div class="toolbar-row">
-    <!-- Far left: CLEAR column -->
-    <div style="display:flex;flex-direction:column;align-self:stretch;gap:6px;padding:10px 0">
-      <button id="clearBtn" class="btn" style="flex:1">Reset</button>
-    </div>
-
     <!-- Pink box: element picker grid -->
     <div class="ctrl-box-pink" style="flex-direction:column;align-items:flex-start;gap:7px;">
       <span class="ctrl-box-label ctrl-box-label-pink">PARTICLES</span>
       <div style="display:flex;gap:8px;align-items:flex-start">
-        <div id="elemGrid"></div>
+        <div id="elemGrid">
+          <button id="clearBtn" class="btn" style="grid-column:3/span 3;grid-row:1;margin:0 8px;align-self:stretch;">Reset</button>
+        </div>
         <!-- Particle counts + form buttons to the right -->
         <div style="display:flex;flex-direction:column;gap:5px;padding-top:2px">
           <div style="background:rgba(255,255,255,0.05);border-radius:6px;padding:5px 9px;color:var(--text-dim);white-space:nowrap;display:flex;flex-direction:column;gap:1px;">
@@ -898,7 +896,7 @@
             </div>
             <div style="display:flex;align-items:baseline;gap:5px;border-top:1px solid rgba(255,255,255,0.08);margin-top:3px;padding-top:3px;">
               <span style="font-size:10px;opacity:0.7;width:18px">u</span>
-              <span id="atomMass" style="font-size:16px;font-weight:500;color:rgba(200,220,255,0.85);font-variant-numeric:tabular-nums;line-height:1.1">0.000</span>
+              <span id="atomMass" style="font-size:16px;font-weight:500;color:rgba(200,220,255,0.85);font-variant-numeric:tabular-nums;line-height:1.1">0.00</span>
             </div>
           </div>
           <div id="formBtnsBox" style="display:flex;flex-direction:column;gap:3px;"></div>
@@ -913,47 +911,40 @@
     <div class="ctrl-box-blue">
       <span class="ctrl-box-label ctrl-box-label-blue">VISUALS</span>
       <div style="display:flex;flex-direction:column;gap:10px;justify-content:space-evenly;align-self:stretch">
-        <div style="display:flex;flex-direction:column;gap:3px">
-          <div class="slider-group" id="zoomSliderRow">
-            <span class="slider-icon" style="visibility:hidden"><img src="images/Turtle.png" style="height:0.85em;vertical-align:middle;display:block"></span>
-            <input type="range" id="zoomSlider" min="-1" max="1" step="0.01" value="0">
+        <div style="display:flex;flex-direction:column;gap:3px;align-self:stretch">
+          <div class="slider-group" id="zoomSliderRow" style="width:100%">
+            <input type="range" id="zoomSlider" min="-1" max="1" step="0.01" value="0" style="flex:1;min-width:0;width:auto">
             <span class="slider-icon">🔍</span>
           </div>
           <div style="font-size:8px;color:rgba(200,190,255,0.32);text-align:center;letter-spacing:0.04em">right-click to drag</div>
         </div>
-        <label class="toggle-label" id="autoscaleRow">
-          <input type="checkbox" id="autoscaleCheckbox" checked>
-          <span class="field-label-electric">Autoscale</span>
-        </label>
-        <label class="toggle-label" id="showElectricRow">
-          <input type="checkbox" id="showElectric">
-          <span class="field-label-electric">Show atomic radius</span>
-        </label>
-        <div style="display:flex;gap:10px" id="showGridRow">
+        <div style="display:flex;gap:10px" id="autoscaleRow">
+          <label class="toggle-label">
+            <input type="checkbox" id="autoscaleCheckbox" checked>
+            <span class="field-label-electric">Autoscale</span>
+          </label>
           <label class="toggle-label">
             <input type="checkbox" id="showGridCheckbox">
             <span class="field-label-electric">Grid</span>
           </label>
-          <label class="toggle-label" id="forceValuesLabel" style="display:none">
-            <input type="checkbox" id="showForceValuesCheckbox">
-            <span class="field-label-electric">Force Values</span>
-          </label>
         </div>
+        <label class="toggle-label" id="showElectricRow">
+          <input type="checkbox" id="showElectric">
+          <span class="field-label-electric">Show atomic radius</span>
+        </label>
+        <label class="toggle-label" id="forceValuesLabel" style="display:none">
+          <input type="checkbox" id="showForceValuesCheckbox">
+          <span class="field-label-electric">Force Values</span>
+        </label>
 
       </div>
-      <div style="display:flex;gap:10px;align-self:stretch;align-items:center">
+      <div style="display:flex;gap:10px;align-self:stretch;align-items:flex-start;padding-top:4px">
         <div style="display:flex;flex-direction:column;gap:4px">
-          <button class="awheel-item active" data-tab="shells" style="padding:3px 18px;font-size:15px">Shells</button>
+          <button class="awheel-item" data-tab="orbit3d" style="min-width:72px;text-align:center">Trails</button>
+          <button class="awheel-item active" data-tab="shells" style="min-width:72px;text-align:center">Shells</button>
+          <button id="showForcesBtn" class="awheel-item" style="display:none;min-width:72px;text-align:center;white-space:normal;line-height:1.25;padding:4px 8px;font-size:13px">Show<br>forces</button>
+          <button id="hideForcesBtn" class="awheel-item" style="display:none;min-width:72px;text-align:center;white-space:normal;line-height:1.25;padding:4px 8px;font-size:13px">Hide<br>forces</button>
           <button class="awheel-item" data-tab="trails" id="trailsTabBtn" style="display:none;padding:3px 18px;font-size:15px">iTunes Visualizer</button>
-          <button class="awheel-item" data-tab="orbit3d" style="padding:3px 18px;font-size:15px">Trails</button>
-        </div>
-        <div id="forceCtrlBox" style="display:flex;flex-direction:column;gap:4px">
-          <button id="showForcesBtn" class="force-show-btn" style="display:none;min-height:72px">Show forces</button>
-          <div id="forceActiveCtrl" style="display:flex;flex-direction:column;gap:4px">
-            <button class="awheel-item" id="hideForcesBtn">Hide forces</button>
-            <button class="awheel-item active" data-fvmode="shell">Force on Shell</button>
-            <button class="awheel-item" data-fvmode="electron">Force on Electron</button>
-          </div>
         </div>
       </div>
     </div>
@@ -1003,9 +994,15 @@
   <div class="fp-rh sw" data-dir="sw"></div><div class="fp-rh se" data-dir="se"></div>
   <div class="fp-rh n"  data-dir="n"></div><div class="fp-rh s"  data-dir="s"></div>
   <div class="fp-rh e"  data-dir="e"></div><div class="fp-rh w"  data-dir="w"></div>
-  <div id="forceVizKey">
-    <span><span style="color:#ff44cc">■</span><span style="color:#ff44cc;text-shadow:0 0 4px #ff44cc,0 0 10px rgba(255,68,204,0.5)">Attraction to Protons (electric)</span></span>
-    <span><span style="color:#00eeff">■</span><span style="color:#00eeff;text-shadow:0 0 4px #00eeff,0 0 10px rgba(0,238,255,0.5)">Repulsion from Electrons (electric)</span></span>
+  <div id="forceVizTop">
+    <div id="forceVizKey">
+      <span><span style="color:#ff44cc">■</span><span style="color:#ff44cc;text-shadow:0 0 4px #ff44cc,0 0 10px rgba(255,68,204,0.5)">Attraction to Protons (electric)</span></span>
+      <span><span style="color:#00eeff">■</span><span style="color:#00eeff;text-shadow:0 0 4px #00eeff,0 0 10px rgba(0,238,255,0.5)">Repulsion from Electrons (electric)</span></span>
+    </div>
+    <div id="forceActiveCtrl" style="display:flex;flex-direction:row;gap:6px;padding:6px 10px">
+      <button class="awheel-item active" data-fvmode="shell" style="flex:1;font-size:14px;padding:5px 10px;text-align:center">Force on Shell</button>
+      <button class="awheel-item" data-fvmode="electron" style="flex:1;font-size:14px;padding:5px 10px;text-align:center">Force on Electron</button>
+    </div>
   </div>
   <canvas id="forceVizCanvas" width="333" height="180"></canvas>
 </div>
@@ -1650,6 +1647,7 @@ let orb3dDotR = 10;       // dot radius at trail head in orbit (0 = hidden)
 let orb3dAZ = 0.60;       // azimuth angle (horizontal rotation)
 let orb3dEL = 0.42;       // elevation angle (vertical tilt)
 let orb3dPaused = false;  // true = electrons frozen; drag rotates view
+let _gridOC = null, _gridOCKey = ''; // offscreen grid cache
 let orb3dDragState = null; // { lastX, lastY, moved } during active drag
 
 // Per-shell group state — each shell has independent pair/loner groups
@@ -1750,65 +1748,52 @@ function drawOrbit3D(ctx) {
   // 3D grid — cyberpunk neon
   if (showGrid && occupied.length) {
     const _gScale = shellBaseR * orb3dRadScale * viewZoom;
-    // Extend grid to screen edges: half-diagonal ÷ _gScale gives required pm reach
-    const _step   = 20;  // pm between grid lines
-    const _extPm  = Math.ceil(Math.hypot(W, H) / 2 / _gScale / _step) * _step;
-    const _t  = performance.now();
-    // Single slow pulse — high floor keeps it bright most of the time
-    const _pulse = 0.75 + 0.25 * Math.sin(_t / 1100);
+    const _step   = 20;
+    const _extPm  = Math.min(2000, Math.ceil(Math.hypot(W, H) / 2 / _gScale / _step) * _step);
     const [_gr, _gg, _gb] = _themeGridRgb;
 
-    ctx.save();
+    // Cache key covers everything that affects grid geometry or color
+    const _cacheKey = `${W}|${H}|${cx.toFixed(1)}|${cy.toFixed(1)}|${_gScale.toFixed(4)}|${_gr},${_gg},${_gb}|${AZ.toFixed(4)}|${EL.toFixed(4)}`;
+    if (!_gridOC || _gridOCKey !== _cacheKey) {
+      _gridOC = new OffscreenCanvas(W, H);
+      const gc = _gridOC.getContext('2d');
 
-    // ── Floor grid lines — single batched path (cheap) ──
-    ctx.strokeStyle = `rgba(${_gr},${_gg},${_gb},${0.12 + 0.06 * _pulse})`;
-    ctx.lineWidth   = 1.4;
-    ctx.shadowColor = `rgb(${_gr},${_gg},${_gb})`;
-    ctx.shadowBlur  = 2 + 2 * _pulse;
-    ctx.beginPath();
-    for (let i = -_extPm; i <= _extPm; i += _step) {
-      if (i === 0) continue;
-      const [gx0,gy0] = proj3D(i, 0, -_extPm, _gScale);
-      const [gx1,gy1] = proj3D(i, 0,  _extPm, _gScale);
-      ctx.moveTo(gx0,gy0); ctx.lineTo(gx1,gy1);
-      const [gx2,gy2] = proj3D(-_extPm, 0, i, _gScale);
-      const [gx3,gy3] = proj3D( _extPm, 0, i, _gScale);
-      ctx.moveTo(gx2,gy2); ctx.lineTo(gx3,gy3);
+      // Floor grid lines — no shadow, plain alpha (shadow was the CPU cost)
+      gc.strokeStyle = `rgba(${_gr},${_gg},${_gb},0.18)`;
+      gc.lineWidth   = 1.4;
+      gc.beginPath();
+      for (let i = -_extPm; i <= _extPm; i += _step) {
+        if (i === 0) continue;
+        const [gx0,gy0] = proj3D(i, 0, -_extPm, _gScale);
+        const [gx1,gy1] = proj3D(i, 0,  _extPm, _gScale);
+        gc.moveTo(gx0,gy0); gc.lineTo(gx1,gy1);
+        const [gx2,gy2] = proj3D(-_extPm, 0, i, _gScale);
+        const [gx3,gy3] = proj3D( _extPm, 0, i, _gScale);
+        gc.moveTo(gx2,gy2); gc.lineTo(gx3,gy3);
+      }
+      gc.stroke();
+
+      // Axes — single pass, no bloom
+      const axes = [
+        [[-_extPm,0,0],[_extPm,0,0]],
+        [[0,0,-_extPm],[0,0,_extPm]],
+        [[0,-_extPm,0],[0,_extPm,0]],
+      ];
+      gc.strokeStyle = `rgba(${_gr},${_gg},${_gb},0.80)`;
+      gc.lineWidth   = 1.5;
+      gc.beginPath();
+      for (const [[ax,ay,az],[bx,by,bz]] of axes) {
+        const [sx0,sy0] = proj3D(ax,ay,az, _gScale);
+        const [sx1,sy1] = proj3D(bx,by,bz, _gScale);
+        gc.moveTo(sx0,sy0); gc.lineTo(sx1,sy1);
+      }
+      gc.stroke();
+
+      _gridOCKey = _cacheKey;
     }
-    ctx.stroke();
-    ctx.shadowBlur = 0;
 
-    // ── Axes — bloom pass then crisp pass ──
-    const axes = [
-      [[-_extPm,0,0],[_extPm,0,0]],
-      [[0,0,-_extPm],[0,0,_extPm]],
-      [[0,-_extPm,0],[0,_extPm,0]],
-    ];
-    ctx.lineWidth   = 5;
-    ctx.shadowColor = `rgb(${_gr},${_gg},${_gb})`;
-    ctx.shadowBlur  = 10 + 6 * _pulse;
-    ctx.strokeStyle = `rgba(${_gr},${_gg},${_gb},${0.10 + 0.08 * _pulse})`;
-    ctx.beginPath();
-    for (const [[ax,ay,az],[bx,by,bz]] of axes) {
-      const [sx0,sy0] = proj3D(ax,ay,az, _gScale);
-      const [sx1,sy1] = proj3D(bx,by,bz, _gScale);
-      ctx.moveTo(sx0,sy0); ctx.lineTo(sx1,sy1);
-    }
-    ctx.stroke();
-
-    ctx.lineWidth   = 1.5;
-    ctx.shadowBlur  = 4 + 4 * _pulse;
-    ctx.strokeStyle = `rgba(${_gr},${_gg},${_gb},${0.70 + 0.25 * _pulse})`;
-    ctx.beginPath();
-    for (const [[ax,ay,az],[bx,by,bz]] of axes) {
-      const [sx0,sy0] = proj3D(ax,ay,az, _gScale);
-      const [sx1,sy1] = proj3D(bx,by,bz, _gScale);
-      ctx.moveTo(sx0,sy0); ctx.lineTo(sx1,sy1);
-    }
-    ctx.stroke();
-
-    ctx.shadowBlur = 0;
-    ctx.restore();
+    // Single GPU blit — essentially free
+    ctx.drawImage(_gridOC, 0, 0);
   }
 
   // Shell reference rings
@@ -2103,6 +2088,28 @@ function removeElectron() {
   updateElectronCount();
 }
 
+function _respaceShell(shell) {
+  const inShell = electrons.filter(e => e.shell === shell);
+  const n = inShell.length;
+  if (n <= 1) return;
+  const cx = animParent.cx, cy = animParent.cy;
+  const shellR = getShellRadius(shell);
+  const vCirc = Math.sqrt(eK / shellR) * eDt * 30;
+  const anchor = inShell[0].angle;
+  for (let i = 0; i < n; i++) {
+    const a = (anchor + (2 * Math.PI * i) / n) % (2 * Math.PI);
+    const e = inShell[i];
+    e.angle = a;
+    e.x = cx + Math.cos(a) * shellR;
+    e.y = cy + Math.sin(a) * shellR;
+    e.vx = -Math.sin(a) * vCirc;
+    e.vy =  Math.cos(a) * vCirc;
+    e.dAngle = 0.018;
+    e.dRadial = 0;
+    e.radialOffset = 0;
+  }
+}
+
 function addElectron() {
   if (!animParent) return;
   if (electrons.length >= E_MAX_TOTAL) return;
@@ -2110,21 +2117,30 @@ function addElectron() {
   const cx = animParent.cx, cy = animParent.cy;
   const shell = getShellForNewElectron();
   const shellR = getShellRadius(shell);
-  const dist = shellR; // place at shell ring radius to match shells-mode visual
-  const angle = (electrons.length * (2 * Math.PI / 3) + Math.random() * 0.4) % (Math.PI * 2);
-  const vCirc = Math.sqrt(eK / dist) * eDt * 30;
+  const inShell = electrons.filter(e => e.shell === shell);
+  // Place new electron opposite the centroid of existing ones in this shell
+  let angle;
+  if (inShell.length === 0) {
+    angle = 0;
+  } else {
+    const mx = inShell.reduce((s, e) => s + Math.cos(e.angle), 0);
+    const my = inShell.reduce((s, e) => s + Math.sin(e.angle), 0);
+    angle = Math.atan2(-my, -mx); // opposite the cluster centroid
+  }
+  const vCirc = Math.sqrt(eK / shellR) * eDt * 30;
   electrons.push({
-    x: cx + Math.cos(angle) * dist,
-    y: cy + Math.sin(angle) * dist,
+    x: cx + Math.cos(angle) * shellR,
+    y: cy + Math.sin(angle) * shellR,
     vx: -Math.sin(angle) * vCirc,
     vy:  Math.cos(angle) * vCirc,
     trail: [],
     shell,
-    angle,          // used by Shells tab
-    dAngle: 0.018,  // start with a base orbital drift
-    radialOffset: 0, // radial offset from shell center (world units)
+    angle,
+    dAngle: 0.018,
+    radialOffset: 0,
     dRadial: 0,
   });
+  _respaceShell(shell);
   updateElectronCount();
 }
 
@@ -2931,7 +2947,7 @@ function getCameraShiftX() {
 function syncForceVizCanvasSize() {
   const w = forceVizPanelEl.offsetWidth;
   const h = forceVizPanelEl.offsetHeight;
-  const topH = document.getElementById('forceVizKey').offsetHeight;
+  const topH = document.getElementById('forceVizTop').offsetHeight;
   const cw = Math.max(80, w - 20) | 0;
   const ch = Math.max(80, h - topH - 26) | 0;
   if (forceVizCv.width !== cw || forceVizCv.height !== ch) {
@@ -2947,7 +2963,7 @@ function syncForceVizVisibility() {
   if (showFV && wasHidden) _fvDefaultPosition();
   const _isShells = currentTab === 'shells';
   document.getElementById('showForcesBtn').style.display  = (!arrowMode && _isShells) ? '' : 'none';
-  document.getElementById('forceActiveCtrl').style.display = (arrowMode > 0 && _isShells) ? 'flex' : 'none';
+  document.getElementById('hideForcesBtn').style.display  = (arrowMode > 0 && _isShells) ? '' : 'none';
   document.getElementById('forceValuesLabel').style.display = (arrowMode > 0 && _isShells) ? '' : 'none';
   if (showFV) { syncForceVizCanvasSize(); drawForceViz(); }
   draw();
@@ -3632,7 +3648,7 @@ function updateParticleCounters() {
   p1P.textContent = Z;
   const mass = Z * MASS_PROTON + N * MASS_NEUTRON + E * MASS_ELECTRON;
   const massEl = document.getElementById('atomMass');
-  if (massEl) massEl.textContent = mass.toFixed(3);
+  if (massEl) massEl.textContent = mass.toFixed(2);
 }
 
 
@@ -3806,8 +3822,6 @@ document.getElementById('radiusModeSelect').addEventListener('change', function 
 
 function syncTabButtons() {
   document.querySelectorAll('.awheel-item[data-tab]').forEach(b => b.classList.toggle('active', b.dataset.tab === currentTab));
-  const hideForce = currentTab === 'trails' || currentTab === 'orbit3d';
-  document.getElementById('forceCtrlBox').style.display = hideForce ? 'none' : '';
 }
 
 document.querySelectorAll('.awheel-item[data-tab]').forEach(btn => {
@@ -3865,15 +3879,19 @@ document.getElementById('showForceValuesCheckbox').addEventListener('change', fu
 
 // ─── Force viz panel default position ────────────────────────────────────────
 function _fvDefaultPosition() {
-  const tbH  = document.getElementById('toolbar').offsetHeight;
-  const panH = forceVizPanelEl.offsetHeight;
-  const mid  = tbH + (window.innerHeight - tbH) / 2;
-  forceVizPanelEl.style.top   = Math.max(tbH + 8, Math.round(mid - panH / 2)) + 'px';
-  forceVizPanelEl.style.right = '20px';
-  forceVizPanelEl.style.left  = '';
+  const tbH = document.getElementById('toolbar').offsetHeight;
+  const gap = 10;
+  forceVizPanelEl.style.top    = (tbH + gap) + 'px';
+  forceVizPanelEl.style.height = (window.innerHeight - tbH - gap * 2) + 'px';
+  forceVizPanelEl.style.right  = '20px';
+  forceVizPanelEl.style.left   = '';
 }
 window.addEventListener('resize', () => {
-  if (forceVizPanelEl.style.display !== 'none') _fvDefaultPosition();
+  if (forceVizPanelEl.style.display !== 'none') {
+    _fvDefaultPosition();
+    syncForceVizCanvasSize();
+    drawForceViz();
+  }
 });
 
 // ─── Force viz panel drag + resize ───────────────────────────────────────────
