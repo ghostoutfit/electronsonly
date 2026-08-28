@@ -55,9 +55,7 @@
     flex-direction: column;
     gap: 6px;
     padding: 10px 20px 10px;
-    background: var(--ui-bg);
-    backdrop-filter: blur(18px);
-    -webkit-backdrop-filter: blur(18px);
+    background: rgba(8,6,24,0.88);
     box-shadow: 0 4px 24px rgba(0,0,0,0.55);
   }
 
@@ -523,9 +521,7 @@
     z-index: 10;
     display: none;
     flex-direction: row;
-    background: var(--ui-bg);
-    backdrop-filter: blur(18px);
-    -webkit-backdrop-filter: blur(18px);
+    background: rgba(8,6,24,0.88);
     border-top: 1px solid var(--ui-border);
     box-shadow: 0 -1px 0 var(--accent1-dim), 0 -4px 20px rgba(0,0,0,0.5);
   }
@@ -767,15 +763,29 @@
   }
   body.screenshot-mode #scrubBar,
   body.screenshot-mode #scrubBar * { color: #000 !important; text-shadow: none !important; }
+  body.screenshot-mode #keKeyLabel,
+  body.screenshot-mode #energyPctKE { color: #c8134a !important; }
   body.screenshot-mode #ieKeyLabel,
-  body.screenshot-mode #energyPctIE { color: #777 !important; }
+  body.screenshot-mode #energyPctIE { color: #4a30c0 !important; }
   body.screenshot-mode #scrubBar button { border-color: #000 !important; box-shadow: none !important; }
   body.screenshot-mode #scrubSlider { accent-color: #000 !important; }
   body.screenshot-mode #energyGraph { background: #fff !important; }
   /* Preserve educational color codes: electric = blue, strong = orange */
-  body.screenshot-mode .field-label-electric { color: #46a5ff !important; }
-  body.screenshot-mode .field-label-strong   { color: #ffb946 !important; }
+  body.screenshot-mode .field-label-electric { color: #1060d0 !important; }
+  body.screenshot-mode .field-label-strong   { color: #b06000 !important; }
   body.screenshot-mode img[alt="logo"] { display: none !important; }
+  body.screenshot-mode #forceVizPanel {
+    background: rgba(255,255,255,0.97) !important;
+    border: 1.5px solid rgba(0,0,0,0.30) !important;
+    box-shadow: 0 2px 16px rgba(0,0,0,0.14) !important;
+  }
+  body.screenshot-mode .fvk-nuc { color: #aa0070 !important; text-shadow: none !important; }
+  body.screenshot-mode .fvk-rep { color: #006699 !important; text-shadow: none !important; }
+  body.screenshot-mode #toolbar .ctrl-box-label-pink { color: #b8003a !important; text-shadow: none !important; }
+  body.screenshot-mode #toolbar .ctrl-box-label-blue { color: #0050c8 !important; text-shadow: none !important; opacity: 1 !important; }
+  body.screenshot-mode #forceActiveCtrl .awheel-item { color: rgba(0,0,0,0.55) !important; border-color: rgba(0,0,0,0.18) !important; box-shadow: none !important; text-shadow: none !important; background: transparent !important; }
+  body.screenshot-mode #forceActiveCtrl .awheel-item:hover { color: rgba(0,0,0,0.80) !important; border-color: rgba(0,0,0,0.40) !important; background: rgba(0,0,0,0.06) !important; }
+  body.screenshot-mode #forceActiveCtrl .awheel-item.active { color: rgba(0,0,0,0.85) !important; border-color: rgba(0,0,0,0.55) !important; background: rgba(0,0,0,0.08) !important; }
   body.screenshot-mode .pwheel-drop { background: rgba(255,255,255,0.97) !important; border-color: rgba(200,30,60,0.25) !important; }
   body.screenshot-mode .nucleus-opt { border-color: transparent !important; background: transparent !important; }
   body.screenshot-mode .nucleus-opt:hover { border-color: rgba(200,30,60,0.3) !important; background: rgba(255,180,190,0.25) !important; }
@@ -815,8 +825,6 @@
     background: rgba(8,6,24,0.90);
     border: 1px solid var(--accent2);
     z-index: 15;
-    backdrop-filter: blur(10px);
-    -webkit-backdrop-filter: blur(10px);
     padding: 10px 10px 8px;
     box-shadow: 0 0 24px var(--accent2-dim);
     cursor: grab;
@@ -908,7 +916,7 @@
     </div>
 
     <!-- Blue box: stacked sliders + electric field + particles + forces -->
-    <div class="ctrl-box-blue">
+    <div class="ctrl-box-blue" id="visualsCtrlBox">
       <span class="ctrl-box-label ctrl-box-label-blue">VISUALS</span>
       <div style="display:flex;flex-direction:column;gap:10px;justify-content:space-evenly;align-self:stretch">
         <div style="display:flex;flex-direction:column;gap:3px;align-self:stretch">
@@ -996,8 +1004,8 @@
   <div class="fp-rh e"  data-dir="e"></div><div class="fp-rh w"  data-dir="w"></div>
   <div id="forceVizTop">
     <div id="forceVizKey">
-      <span><span style="color:#ff44cc">■</span><span style="color:#ff44cc;text-shadow:0 0 4px #ff44cc,0 0 10px rgba(255,68,204,0.5)">Attraction to Protons (electric)</span></span>
-      <span><span style="color:#00eeff">■</span><span style="color:#00eeff;text-shadow:0 0 4px #00eeff,0 0 10px rgba(0,238,255,0.5)">Repulsion from Electrons (electric)</span></span>
+      <span><span class="fvk-nuc" style="color:#ff44cc">■</span><span class="fvk-nuc" style="color:#ff44cc;text-shadow:0 0 4px #ff44cc,0 0 10px rgba(255,68,204,0.5)">Attraction to Protons (electric)</span></span>
+      <span><span class="fvk-rep" style="color:#00eeff">■</span><span class="fvk-rep" style="color:#00eeff;text-shadow:0 0 4px #00eeff,0 0 10px rgba(0,238,255,0.5)">Repulsion from Electrons (electric)</span></span>
     </div>
     <div id="forceActiveCtrl" style="display:flex;flex-direction:row;gap:6px;padding:6px 10px">
       <button class="awheel-item active" data-fvmode="shell" style="flex:1;font-size:14px;padding:5px 10px;text-align:center">Force on Shell</button>
@@ -1437,7 +1445,7 @@ function drawCloudOutline(cx, cy, sphereR, c = ctx) {
   c.save();
   c.shadowColor = LIGHT ? 'rgba(0,0,0,0)' : 'rgba(80,160,255,0.9)';
   c.shadowBlur  = LIGHT ? 0 : 22;
-  c.strokeStyle = LIGHT ? '#333' : 'rgba(160,215,255,1)';
+  c.strokeStyle = LIGHT ? '#1a5ecc' : 'rgba(160,215,255,1)';
   c.lineWidth   = LIGHT ? 2.5 : 4;
   c.beginPath();
 
@@ -1612,7 +1620,8 @@ let _imgParent = null;
 let electrons = [];
 let eK = 140000, eRepulse = 50000, eDamp = 1, eMinR = 80, eMaxR = 90, eDt = 1.45;
 let eTrailLen = 105;
-const SHELL_COLORS = ['#ff4488', '#00ddff', '#ff8800', '#88ff00'];
+const SHELL_COLORS       = ['#ff4488', '#00ddff', '#ff8800', '#88ff00'];
+const SHELL_COLORS_LIGHT = ['#c4004e', '#0077bb', '#bb4400', '#3d8800'];
 let shellK          = [140000, 11000, 91000, 140000]; // per-shell nuclear k
 let shellWallMult   = [1.0, 0.35, 0.95, 1.0];         // per-shell wall engagement multiplier
 let shellWallK      = [15, 155, 815, 15];              // per-shell wall stiffness
@@ -1716,6 +1725,7 @@ function stepOrbit3D() {
 
 function drawOrbit3D(ctx) {
   if (!animParent || !electrons.length) return;
+  const LIGHT = document.body.classList.contains('screenshot-mode');
   const W = canvas.width, H = canvas.height;
   const tbH = document.getElementById('toolbar').offsetHeight;
   const _sbH = document.getElementById('scrubBar').classList.contains('visible')
@@ -1854,7 +1864,7 @@ function drawOrbit3D(ctx) {
     ctx.lineWidth = 1;
     for (const s of occupied) {
       const r3d = getShellRadius(s) * orb3dRadScale * viewZoom;
-      ctx.strokeStyle = SHELL_COLORS[s % SHELL_COLORS.length] + '28';
+      ctx.strokeStyle = (LIGHT ? SHELL_COLORS_LIGHT : SHELL_COLORS)[s % SHELL_COLORS.length] + (LIGHT ? '88' : '28');
       ctx.beginPath();
       for (let a = 0; a <= 360; a += 5) {
         const rad = a * Math.PI / 180;
@@ -1878,7 +1888,8 @@ function drawOrbit3D(ctx) {
   for (const s of occupied) {
     const r3d = getShellRadius(s) * orb3dRadScale * viewZoom;
     const _shellOffScreen = r3d > _visHH * 1.2;
-    const col = SHELL_COLORS[s % SHELL_COLORS.length];
+    const col = (LIGHT ? SHELL_COLORS_LIGHT : SHELL_COLORS)[s % SHELL_COLORS.length];
+    const _trailMaxAlpha = LIGHT ? 0.92 : 0.75;
     for (const grp of orb3dShellGroups[s]) {
       for (let ei = 0; ei < grp.count; ei++) {
         const trail = grp.trails[ei];
@@ -1891,7 +1902,7 @@ function drawOrbit3D(ctx) {
             const i0 = Math.round(b / BUCKETS * (n - 1));
             const i1 = Math.round((b + 1) / BUCKETS * (n - 1));
             if (i1 <= i0) continue;
-            ctx.globalAlpha = ((b + 1) / BUCKETS) * 0.75;
+            ctx.globalAlpha = ((b + 1) / BUCKETS) * _trailMaxAlpha;
             ctx.beginPath();
             ctx.moveTo(proj[i0][0], proj[i0][1]);
             if (i1 > i0 + 1) {
@@ -1915,6 +1926,7 @@ function drawOrbit3D(ctx) {
           if (dl > 0.5) { dx /= dl; dy /= dl; } else { dx = 1; dy = 0; }
           const _as = s === occupied[0] ? 1.3 : 1.0;
           const W = Math.min(orb3dDotR * r3d / 200 * 0.65 * _as, 7.5), L = W / 0.65, perpx = -dy, perpy = dx;
+          ctx.globalAlpha = 1;
           ctx.fillStyle = col;
           ctx.beginPath();
           ctx.moveTo(tx + dx * L,           ty + dy * L);
@@ -1935,8 +1947,9 @@ function drawOrbit3D(ctx) {
     const outerR = getShellRadius(outerShell) * orb3dRadScale * viewZoom;
     const arPm = Math.round(getShellRadius(outerShell) / shellBaseR);
     const arSuffix = ((customZ === 9 && electrons.length === 10) || (radiusMode === 'vdw' && (customZ === 10 || customZ === 18 || customZ === 36))) ? '*' : '';
+    const _arColOrb = LIGHT ? 'rgba(20,80,200,1.0)' : 'rgba(140,200,255,0.9)';
     ctx.save();
-    ctx.strokeStyle = 'rgba(100,180,255,0.55)';
+    ctx.strokeStyle = LIGHT ? 'rgba(20,80,200,0.80)' : 'rgba(100,180,255,0.55)';
     ctx.lineWidth = 1.5;
     ctx.setLineDash([6, 6]);
     ctx.beginPath();
@@ -1944,7 +1957,7 @@ function drawOrbit3D(ctx) {
     ctx.lineTo(cx + outerR, cy);
     ctx.stroke();
     ctx.setLineDash([]);
-    ctx.fillStyle = 'rgba(140,200,255,0.9)';
+    ctx.fillStyle = _arColOrb;
     ctx.font = '13px Lexend, sans-serif';
     ctx.textAlign = 'center';
     ctx.fillText(`r = ${arPm}${arSuffix} pm`, cx + outerR / 2, cy - 10);
@@ -2119,6 +2132,7 @@ function getShellForNewElectron() {
 // Offscreen glow image — built once, reused for all electrons
 const E_GLOW_R = 10;
 let _eGlowImg = null;
+let _eGlowImgLight = null;
 function _buildElectronGlow() {
   const d = E_GLOW_R * 2 + 1;
   const oc = document.createElement('canvas');
@@ -2133,6 +2147,19 @@ function _buildElectronGlow() {
   oc2.fillStyle = g;
   oc2.fillRect(0, 0, d, d);
   _eGlowImg = oc;
+
+  const ol = document.createElement('canvas');
+  ol.width = ol.height = d;
+  const ol2 = ol.getContext('2d');
+  const gl = ol2.createRadialGradient(E_GLOW_R, E_GLOW_R, 0, E_GLOW_R, E_GLOW_R, E_GLOW_R);
+  gl.addColorStop(0,    'rgba(220,210,0,1)');
+  gl.addColorStop(0.13, 'rgba(210,200,0,1)');
+  gl.addColorStop(0.40, 'rgba(200,190,0,0.85)');
+  gl.addColorStop(0.70, 'rgba(170,160,0,0.55)');
+  gl.addColorStop(1,    'rgba(140,130,0,0)');
+  ol2.fillStyle = gl;
+  ol2.fillRect(0, 0, d, d);
+  _eGlowImgLight = ol;
 }
 
 function removeElectron() {
@@ -2694,7 +2721,8 @@ let showForceValues = false;
 // Drawn in screen space after ctx.restore() — constant visual density at all zoom levels.
 // nucSX/nucSY: nucleus screen position; W/H: canvas dims; tbH: toolbar height.
 function _drawGrid(ctx, nucSX, nucSY, W, H, tbH, zoom) {
-  const tron   = true;
+  const LIGHT  = document.body.classList.contains('screenshot-mode');
+  const tron   = !LIGHT;
   // 20 pm × shellBaseR × zoom keeps grid anchored to atom scale
   const major  = Math.round(20 * shellBaseR * zoom);
   const sub    = 5;    // minor subdivisions per major cell
@@ -2703,12 +2731,12 @@ function _drawGrid(ctx, nucSX, nucSY, W, H, tbH, zoom) {
   const t          = performance.now();
   const pulse      = 0.5 + 0.5 * Math.sin(t / 900);
   const pulseMinor = 0.5 + 0.5 * Math.sin(t / 900 + 1.2);
-  const [gr, gg, gb] = _themeGridRgb;
+  const [gr, gg, gb] = LIGHT ? [120, 120, 120] : _themeGridRgb;
 
-  const majorAlpha = tron ? 0.45 + 0.35 * pulse      : 0.38;
-  const minorAlpha = tron ? 0.07 + 0.08 * pulseMinor : 0.11;
-  const majorColor = tron ? `rgba(${gr},${gg},${gb},${majorAlpha})`  : `rgba(100,160,220,${majorAlpha})`;
-  const minorColor = tron ? `rgba(${gr},${gg},${gb},${minorAlpha})`  : `rgba(100,150,200,${minorAlpha})`;
+  const majorAlpha = tron ? 0.45 + 0.35 * pulse      : 0.30;
+  const minorAlpha = tron ? 0.07 + 0.08 * pulseMinor : 0.12;
+  const majorColor = tron ? `rgba(${gr},${gg},${gb},${majorAlpha})`  : `rgba(${gr},${gg},${gb},${majorAlpha})`;
+  const minorColor = tron ? `rgba(${gr},${gg},${gb},${minorAlpha})`  : `rgba(${gr},${gg},${gb},${minorAlpha})`;
   const glowColor  = `rgb(${gr},${gg},${gb})`;
   const glowBlur   = tron ? 6 + 10 * pulse : 0;
 
@@ -2751,7 +2779,7 @@ function _drawGrid(ctx, nucSX, nucSY, W, H, tbH, zoom) {
     for (let x = x0major; x <= W; x += major) { ctx.moveTo(x, tbH); ctx.lineTo(x, H); }
     for (let y = y0major; y <= H; y += major) { if (y < tbH) continue; ctx.moveTo(0, y); ctx.lineTo(W, y); }
 
-    if (_quality === 'hi-res') {
+    if (!LIGHT && _quality === 'hi-res') {
       _strokeMajor(majorAlpha * 0.30, majorLW * 2.8, 26);
       _strokeMajor(majorAlpha * 0.60, majorLW * 1.2, 11);
       _strokeMajor(majorAlpha,        majorLW,        4);
@@ -2784,7 +2812,7 @@ function _drawGrid(ctx, nucSX, nucSY, W, H, tbH, zoom) {
       ctx.lineTo(nucSX + maxR * Math.cos(rad), nucSY + maxR * Math.sin(rad));
     }
 
-    if (_quality === 'hi-res') {
+    if (!LIGHT && _quality === 'hi-res') {
       _strokeMajor(majorAlpha * 0.30, majorLW * 2.8, 26);
       _strokeMajor(majorAlpha * 0.60, majorLW * 1.2, 11);
       _strokeMajor(majorAlpha,        majorLW,        4);
@@ -2896,6 +2924,7 @@ function stepElectronsShells() {
 function drawElectronsShells(ctx) {
   if (!animParent || !electrons.length) return;
   if (!_eGlowImg) _buildElectronGlow();
+  const LIGHT = document.body.classList.contains('screenshot-mode');
   const cx = animParent.cx, cy = animParent.cy;
   const Z = viewZoom;
 
@@ -2903,49 +2932,33 @@ function drawElectronsShells(ctx) {
 
   // Shaded channel for each occupied shell, colored by SHELL_COLORS
   const occupied = new Set(electrons.map(e => e.shell));
+  const _bandPeak = LIGHT ? 0.72 : 0.30;
   for (const s of occupied) {
     const r = getShellRadius(s);
     const hw = eShellBandHW + r * 0.1;
     const rInner = Math.max(0, r - hw);
     const rOuter = r + hw;
-    const hex = SHELL_COLORS[s % SHELL_COLORS.length];
+    const hex = (LIGHT ? SHELL_COLORS_LIGHT : SHELL_COLORS)[s % SHELL_COLORS.length];
     const rv = parseInt(hex.slice(1,3),16), gv = parseInt(hex.slice(3,5),16), bv = parseInt(hex.slice(5,7),16);
     const grad = ctx.createRadialGradient(cx, cy, rInner, cx, cy, rOuter);
-    grad.addColorStop(0,   `rgba(${rv},${gv},${bv},0)`);
-    grad.addColorStop(0.5, `rgba(${rv},${gv},${bv},0.30)`);
-    grad.addColorStop(1,   `rgba(${rv},${gv},${bv},0)`);
+    const _c = (t) => `rgba(${rv},${gv},${bv},${(_bandPeak * t).toFixed(3)})`;
+    grad.addColorStop(0.00, _c(0));
+    grad.addColorStop(0.25, _c(0.08));
+    grad.addColorStop(0.38, _c(0.65));
+    grad.addColorStop(0.50, _c(1.00));
+    grad.addColorStop(0.62, _c(0.65));
+    grad.addColorStop(0.75, _c(0.08));
+    grad.addColorStop(1.00, _c(0));
     ctx.fillStyle = grad;
     ctx.beginPath();
     ctx.arc(cx, cy, rOuter, 0, Math.PI * 2);
     ctx.fill();
   }
 
-  // Electrons as glow dots within their shell band
-  const worldR = electronDotR / Z;
-  ctx.globalAlpha = 1;
-  if (electronDotR > 0) {
-    for (const e of electrons) {
-      const r = getShellRadius(e.shell) + (e.radialOffset || 0);
-      const ex = cx + Math.cos(e.angle) * r;
-      const ey = cy + Math.sin(e.angle) * r;
-      ctx.drawImage(_eGlowImg, ex - worldR, ey - worldR, worldR * 2, worldR * 2);
-    }
-  }
-
-  // Bright white core
-  ctx.fillStyle = 'rgba(255,255,220,0.95)';
-  const coreR = electronDotR / 6 / Z;
-  for (const e of electrons) {
-    const r = getShellRadius(e.shell) + (e.radialOffset || 0);
-    ctx.beginPath();
-    ctx.arc(cx + Math.cos(e.angle) * r, cy + Math.sin(e.angle) * r, coreR, 0, Math.PI * 2);
-    ctx.fill();
-  }
-
-  // Highlight selection
+  // Highlight selection — drawn before electrons so electrons render on top
   if (arrowMode > 0) {
     if (fvShellMode && selectedShell >= 0) {
-      ctx.strokeStyle = 'rgba(255,255,255,0.55)';
+      ctx.strokeStyle = LIGHT ? 'rgba(30,60,180,0.75)' : 'rgba(255,255,255,0.55)';
       ctx.lineWidth = 2 / Z;
       ctx.setLineDash([6 / Z, 4 / Z]);
       ctx.beginPath();
@@ -2957,7 +2970,7 @@ function drawElectronsShells(ctx) {
       const sr = getShellRadius(se.shell) + (se.radialOffset || 0);
       const sex = cx + Math.cos(se.angle) * sr;
       const sey = cy + Math.sin(se.angle) * sr;
-      ctx.strokeStyle = 'rgba(255,255,255,0.7)';
+      ctx.strokeStyle = LIGHT ? 'rgba(30,60,180,0.85)' : 'rgba(255,255,255,0.7)';
       ctx.lineWidth = 1.5 / Z;
       ctx.setLineDash([4 / Z, 3 / Z]);
       ctx.beginPath();
@@ -2965,6 +2978,28 @@ function drawElectronsShells(ctx) {
       ctx.stroke();
       ctx.setLineDash([]);
     }
+  }
+
+  // Electrons as glow dots within their shell band
+  const worldR = electronDotR / Z;
+  const coreR = electronDotR / 6 / Z;
+  ctx.globalAlpha = 1;
+  const _glowImg = LIGHT ? _eGlowImgLight : _eGlowImg;
+  if (electronDotR > 0 && _glowImg) {
+    for (const e of electrons) {
+      const r = getShellRadius(e.shell) + (e.radialOffset || 0);
+      const ex = cx + Math.cos(e.angle) * r;
+      const ey = cy + Math.sin(e.angle) * r;
+      ctx.drawImage(_glowImg, ex - worldR, ey - worldR, worldR * 2, worldR * 2);
+    }
+  }
+
+  ctx.fillStyle = 'rgba(255,255,220,0.95)';
+  for (const e of electrons) {
+    const r = getShellRadius(e.shell) + (e.radialOffset || 0);
+    ctx.beginPath();
+    ctx.arc(cx + Math.cos(e.angle) * r, cy + Math.sin(e.angle) * r, coreR, 0, Math.PI * 2);
+    ctx.fill();
   }
 
   ctx.restore();
@@ -3053,12 +3088,15 @@ function syncForceVizVisibility() {
 }
 
 function drawForceVizShell() {
+  const LIGHT = document.body.classList.contains('screenshot-mode');
+  const FV_NUC = LIGHT ? 'rgba(160,0,90,0.92)'   : FV_NUC_COLOR;
+  const FV_REP = LIGHT ? 'rgba(0,100,160,0.92)'   : FV_REP_COLOR;
   const fvc = forceVizCv.getContext('2d');
   const W = forceVizCv.width, H = forceVizCv.height;
   fvc.clearRect(0, 0, W, H);
 
   if (selectedShell < 0 || !animParent || !electrons.some(e => e.shell === selectedShell)) {
-    fvc.fillStyle = 'rgba(255,255,255,0.3)';
+    fvc.fillStyle = LIGHT ? 'rgba(0,0,0,0.45)' : 'rgba(255,255,255,0.3)';
     fvc.font = '13px Lexend, sans-serif';
     fvc.textAlign = 'center';
     fvc.textBaseline = 'middle';
@@ -3103,9 +3141,9 @@ function drawForceVizShell() {
     const p_hw = (eShellBandHW + sr_s * 0.1) * scale;
     const rI = Math.max(0, cr_s - p_hw);
     const rO = cr_s + p_hw;
-    const hex = SHELL_COLORS[s % SHELL_COLORS.length];
+    const hex = (LIGHT ? SHELL_COLORS_LIGHT : SHELL_COLORS)[s % SHELL_COLORS.length];
     const rv = parseInt(hex.slice(1,3),16), gv = parseInt(hex.slice(3,5),16), bv = parseInt(hex.slice(5,7),16);
-    const alpha = s === selectedShell ? 0.30 : 0.20;
+    const alpha = s === selectedShell ? (LIGHT ? 0.60 : 0.30) : (LIGHT ? 0.40 : 0.20);
     const sg = fvc.createRadialGradient(panelCx, panelCy, rI, panelCx, panelCy, rO);
     sg.addColorStop(0,   `rgba(${rv},${gv},${bv},0)`);
     sg.addColorStop(0.5, `rgba(${rv},${gv},${bv},${alpha})`);
@@ -3141,14 +3179,14 @@ function drawForceVizShell() {
 
   // Neutral density overlay — dims the nucleus so arrows on top are easier to read
   fvc.save();
-  fvc.fillStyle = 'rgba(0,0,0,0.4)';
+  fvc.fillStyle = LIGHT ? 'rgba(255,255,255,0.55)' : 'rgba(0,0,0,0.4)';
   fvc.beginPath(); fvc.arc(panelCx, panelCy, panelNucR * 1.6, 0, Math.PI * 2); fvc.fill();
   fvc.restore();
 
   // Disclaimer — always shown
   fvc.save();
   fvc.font = '12px Lexend, sans-serif';
-  fvc.fillStyle = 'rgba(255,255,255,0.22)';
+  fvc.fillStyle = LIGHT ? 'rgba(0,0,0,0.40)' : 'rgba(255,255,255,0.22)';
   fvc.textAlign = 'center'; fvc.textBaseline = 'bottom';
   fvc.fillText('Arrows show force per electron, not to scale.', W / 2, H - 14);
   fvc.fillText('Arrow lengths are scaled so forces stay visible.', W / 2, H - 1);
@@ -3205,11 +3243,11 @@ function drawForceVizShell() {
     const fRep = Math.sqrt(frex * frex + frey * frey);
 
     const nucLen = shellArrowLen(fNuc, _FieNN, _FcVal);
-    fvArrowOnCtx(fvc, px, py, -cosA, -sinA, nucLen, FV_NUC_COLOR, 2, nucLen * 0.35);
+    fvArrowOnCtx(fvc, px, py, -cosA, -sinA, nucLen, FV_NUC, 2, nucLen * 0.35);
 
     if (fRep > 0.001) {
       const repLen = shellArrowLen(fRep, _FieNN, _FcVal);
-      fvArrowOnCtx(fvc, px, py, cosA, sinA, repLen, FV_REP_COLOR, 2, repLen * 0.35);
+      fvArrowOnCtx(fvc, px, py, cosA, sinA, repLen, FV_REP, 2, repLen * 0.35);
     }
 
     // Net force (for label only — no arrow drawn in v1)
@@ -3228,7 +3266,7 @@ function drawForceVizShell() {
       const _dNuc = Math.round(fNuc / _FcVal * _FieNN);
       const nucLabel = fmtNNLabel(fNuc / _FcVal * _FieNN, fRep / _FcVal * _FieNN);
       if (nucLabel) {
-        fvc.fillStyle = FV_NUC_COLOR;
+        fvc.fillStyle = FV_NUC;
         fvc.textAlign = nlx > 0.3 ? 'left' : nlx < -0.3 ? 'right' : 'center';
         fvc.fillText(nucLabel, px + nlx * (nucLen + 4), py + nly * (nucLen + 4));
       }
@@ -3237,7 +3275,7 @@ function drawForceVizShell() {
         const repLabel = fmtNNLabel(fRep / _FcVal * _FieNN, fNuc / _FcVal * _FieNN);
         if (repLabel) {
           const repLen = shellArrowLen(fRep, _FieNN, _FcVal);
-          fvc.fillStyle = FV_REP_COLOR;
+          fvc.fillStyle = FV_REP;
           fvc.textAlign = cosA > 0.3 ? 'left' : cosA < -0.3 ? 'right' : 'center';
           fvc.fillText(repLabel, px + cosA * (repLen + 4), py + sinA * (repLen + 4));
         }
@@ -3250,13 +3288,16 @@ function drawForceVizShell() {
 function drawForceViz() {
   if (arrowMode === 0 || currentTab !== 'shells') return;
   if (fvShellMode) { drawForceVizShell(); return; }
+  const LIGHT = document.body.classList.contains('screenshot-mode');
+  const FV_NUC = LIGHT ? 'rgba(160,0,90,0.92)'  : FV_NUC_COLOR;
+  const FV_REP = LIGHT ? 'rgba(0,100,160,0.92)'  : FV_REP_COLOR;
   const fvc = forceVizCv.getContext('2d');
   const W = forceVizCv.width, H = forceVizCv.height;
   fvc.clearRect(0, 0, W, H);
 
   if (selectedElectronIdx < 0 || selectedElectronIdx >= electrons.length || !animParent) {
     // No selection — show hint text
-    fvc.fillStyle = 'rgba(255,255,255,0.3)';
+    fvc.fillStyle = LIGHT ? 'rgba(0,0,0,0.45)' : 'rgba(255,255,255,0.3)';
     fvc.font = '13px Lexend, sans-serif';
     fvc.textAlign = 'center';
     fvc.textBaseline = 'middle';
@@ -3310,7 +3351,7 @@ function drawForceViz() {
 
   // Nucleus thumbnail (cloud outline)
   fvc.save();
-  fvc.strokeStyle = 'rgba(255,255,255,0.18)';
+  fvc.strokeStyle = LIGHT ? 'rgba(0,0,0,0.30)' : 'rgba(255,255,255,0.18)';
   fvc.lineWidth = 1;
   fvc.beginPath();
   fvc.arc(panelCx, panelCy, panelR, 0, Math.PI * 2);
@@ -3318,8 +3359,8 @@ function drawForceViz() {
   fvc.restore();
 
   // Electron dot
-  fvc.fillStyle = '#eeff00';
-  fvc.shadowColor = '#eeff00'; fvc.shadowBlur = 8;
+  fvc.fillStyle = LIGHT ? '#d4a800' : '#eeff00';
+  fvc.shadowColor = LIGHT ? '#d4a800' : '#eeff00'; fvc.shadowBlur = LIGHT ? 4 : 8;
   const eDot = 5;
   const ePanelX = panelCx + nxN * (panelR + MAX_LEN * 0.25); // offset from nucleus toward electron
   const ePanelY = panelCy + nyN * (panelR + MAX_LEN * 0.25);
@@ -3349,7 +3390,7 @@ function drawForceViz() {
   // Nuclear attraction arrow: from electron toward nucleus
   const maxHead = MAX_LEN * 0.12;
   const nucArrowLen = arrowLen(fNuc, _FieNN, _FcVal);
-  fvArrowOnCtx(fvc, ePx, ePy, nxN, nyN, nucArrowLen, FV_NUC_COLOR, 3, Math.min(maxHead, nucArrowLen * 0.4));
+  fvArrowOnCtx(fvc, ePx, ePy, nxN, nyN, nucArrowLen, FV_NUC, 3, Math.min(maxHead, nucArrowLen * 0.4));
 
   // Smooth label positions toward arrow tips (molasses lag)
   const _nucTarget = { x: ePx + nxN * (nucArrowLen + 8), y: ePy + nyN * (nucArrowLen + 8) };
@@ -3361,7 +3402,7 @@ function drawForceViz() {
   if (fRep > 0.001) {
     const nxR = frex / fRep, nyR = frey / fRep;
     const repArrowLen = arrowLen(fRep, _FieNN, _FcVal);
-    fvArrowOnCtx(fvc, ePx, ePy, nxR, nyR, repArrowLen, FV_REP_COLOR, 3, Math.min(maxHead, repArrowLen * 0.4));
+    fvArrowOnCtx(fvc, ePx, ePy, nxR, nyR, repArrowLen, FV_REP, 3, Math.min(maxHead, repArrowLen * 0.4));
 
     const _repTarget = { x: ePx + nxR * (repArrowLen + 8), y: ePy + nyR * (repArrowLen + 8) };
     if (!_fvLabelRepSmooth) _fvLabelRepSmooth = { ..._repTarget };
@@ -3378,13 +3419,13 @@ function drawForceViz() {
       fvc.textBaseline = 'middle';
       const nucLabel = fmtNNLabel(_fvValueNucSmooth, _fvValueRepSmooth);
       if (nucLabel) {
-        fvc.fillStyle = FV_NUC_COLOR;
+        fvc.fillStyle = FV_NUC;
         fvc.textAlign = nxN > 0.3 ? 'left' : nxN < -0.3 ? 'right' : 'center';
         fvc.fillText(nucLabel, _fvLabelNucSmooth.x, _fvLabelNucSmooth.y);
       }
       const repLabel = fmtNNLabel(_fvValueRepSmooth, _fvValueNucSmooth);
       if (repLabel) {
-        fvc.fillStyle = FV_REP_COLOR;
+        fvc.fillStyle = FV_REP;
         fvc.textAlign = nxR > 0.3 ? 'left' : nxR < -0.3 ? 'right' : 'center';
         fvc.fillText(repLabel, _fvLabelRepSmooth.x, _fvLabelRepSmooth.y);
       }
@@ -3392,7 +3433,7 @@ function drawForceViz() {
     }
   } else {
     _fvLabelRepSmooth = null; _fvValueRepSmooth = null;
-    fvc.fillStyle = 'rgba(0,238,255,0.3)';
+    fvc.fillStyle = LIGHT ? 'rgba(0,100,160,0.5)' : 'rgba(0,238,255,0.3)';
     fvc.font = '11px Lexend, sans-serif';
     fvc.textAlign = 'center';
     fvc.textBaseline = 'top';
@@ -3401,7 +3442,7 @@ function drawForceViz() {
     if (showForceValues && _FieNN) {
       fvc.save();
       fvc.font = 'bold 20px Lexend, sans-serif';
-      fvc.fillStyle = FV_NUC_COLOR;
+      fvc.fillStyle = FV_NUC;
       fvc.textAlign = nxN > 0.3 ? 'left' : nxN < -0.3 ? 'right' : 'center';
       fvc.textBaseline = 'middle';
       const nucLabel = fmtNNLabel(_fvValueNucSmooth);
@@ -3424,7 +3465,7 @@ function drawForceViz() {
   // Disclaimer
   fvc.save();
   fvc.font = '12px Lexend, sans-serif';
-  fvc.fillStyle = 'rgba(255,255,255,0.22)';
+  fvc.fillStyle = LIGHT ? 'rgba(0,0,0,0.40)' : 'rgba(255,255,255,0.22)';
   fvc.textAlign = 'center'; fvc.textBaseline = 'bottom';
   fvc.fillText('Arrows show force per electron, not to scale.', W / 2, H - 14);
   fvc.fillText('Arrow lengths are scaled so forces stay visible.', W / 2, H - 1);
@@ -3621,7 +3662,11 @@ function drawOutlineIcon() {
 }
 
 let _iconLast = -67;
+let _nucleusIconRAF = null;
+let _nucleusIconEnergy = 1.0;
 function nucleusIconLoop(now) {
+  _nucleusIconEnergy *= 0.78;
+  if (_nucleusIconEnergy < 0.01) { _nucleusIconRAF = null; return; }
   if (now - _iconLast >= 67) {   // ~15 fps
     _iconLast = now;
     for (const pts of Object.values(nucleusIconParticlesMap)) {
@@ -3640,14 +3685,15 @@ function nucleusIconLoop(now) {
     }
     drawMiniNucleusIcon(document.getElementById('particlesModeIcon'));
   }
-  requestAnimationFrame(nucleusIconLoop);
+  _nucleusIconRAF = requestAnimationFrame(nucleusIconLoop);
 }
 nucleusIconLoop(0);
 drawOutlineIcon();
 
 // ─── Main draw function ─────────────────────────────────────────────────────
 function draw() {
-  ctx.fillStyle = document.body.classList.contains('screenshot-mode') ? getBgColor() : '#05040f';
+  const LIGHT = document.body.classList.contains('screenshot-mode');
+  ctx.fillStyle = LIGHT ? getBgColor() : '#05040f';
   ctx.fillRect(0, 0, canvas.width, canvas.height);
   if (currentTab === 'orbit3d') { drawOrbit3D(ctx); return; }
   if (!animParent) { drawEnergyGraph(); return; }
@@ -3690,7 +3736,7 @@ function draw() {
     const _nucSY      = _centerY + panOffsetY;
     const _arPm       = Math.round(_outerR / viewZoom / shellBaseR);
     const _arSuffix   = ((customZ === 9 && electrons.length === 10) || (radiusMode === 'vdw' && (customZ === 10 || customZ === 18 || customZ === 36))) ? '*' : '';
-    const _arColor    = 'rgba(140,200,255,0.9)';
+    const _arColor    = LIGHT ? 'rgba(20,80,200,1.0)' : 'rgba(140,200,255,0.9)';
     ctx.save();
     ctx.strokeStyle = _arColor;
     ctx.lineWidth   = 1.5;
@@ -3968,16 +4014,19 @@ document.getElementById('showForceValuesCheckbox').addEventListener('change', fu
 
 // ─── Force viz panel default position ────────────────────────────────────────
 function _fvDefaultPosition() {
-  const panH    = forceVizPanelEl.offsetHeight || 512;
-  const tbH     = document.getElementById('toolbar').offsetHeight;
-  const idealTop = Math.round((window.innerHeight - panH) / 2);
-  forceVizPanelEl.style.top   = Math.max(tbH, idealTop) + 'px';
-  forceVizPanelEl.style.right = '20px';
+  _fvUserMoved = false;
+  const panW = forceVizPanelEl.offsetWidth || 575;
+  const vb   = document.getElementById('visualsCtrlBox');
+  const vbRight  = vb ? vb.getBoundingClientRect().right  : 0;
+  const vbBottom = vb ? vb.getBoundingClientRect().bottom : document.getElementById('toolbar').offsetHeight;
+  const fits = (window.innerWidth - panW - 8) >= vbRight + 8;
+  forceVizPanelEl.style.top  = fits ? '0px' : Math.round(vbBottom + 4) + 'px';
+  forceVizPanelEl.style.right = '8px';
   forceVizPanelEl.style.left  = '';
 }
 window.addEventListener('resize', () => {
   if (forceVizPanelEl.style.display !== 'none') {
-    _fvDefaultPosition();
+    if (!_fvUserMoved) _fvDefaultPosition();
     syncForceVizCanvasSize();
     drawForceViz();
   }
@@ -3996,6 +4045,7 @@ document.querySelectorAll('#forceVizPanel .fp-rh').forEach(h => {
   });
 });
 
+let _fvUserMoved = false;
 let _fvDrag = null;
 forceVizPanelEl.addEventListener('mousedown', e => {
   if (e.target.classList.contains('fp-rh')) return;
@@ -4024,7 +4074,7 @@ window.addEventListener('mousemove', e => {
   }
 });
 
-window.addEventListener('mouseup', () => { _fvResize = null; _fvDrag = null; });
+window.addEventListener('mouseup', () => { _fvResize = null; if (_fvDrag) _fvUserMoved = true; _fvDrag = null; });
 
 // ─── Dev panel wiring ─────────────────────────────────────────────────────────
 var syncShellDevSliders = function() {}; // populated by _wireDevSliders once shell groups are built
@@ -4172,15 +4222,15 @@ function drawEnergyGraph() {
   egCtx.clearRect(0, 0, W, H);
 
   const LIGHT = document.body.classList.contains('screenshot-mode');
-  const _gridCol  = LIGHT ? 'rgba(0,0,0,0.10)' : 'rgba(255,255,255,0.06)';
-const _axisCol  = LIGHT ? 'rgba(0,0,0,0.55)' : 'rgba(0,200,255,0.35)';
-  const _axisGlow = LIGHT ? 'rgba(0,0,0,0)'    : 'rgba(0,200,255,0.5)';
-  const _ieCol    = LIGHT ? '#777'             : '#7b6fff';
-  const _ieGlow   = LIGHT ? 'rgba(0,0,0,0)'    : 'rgba(120,100,255,0.9)';
-  const _keCol    = LIGHT ? '#000'             : '#ff3a6e';
-  const _keGlow   = LIGHT ? 'rgba(0,0,0,0)'    : 'rgba(255,45,100,0.9)';
-  const _selFill  = LIGHT ? 'rgba(0,0,0,0.08)' : 'rgba(120,100,255,0.12)';
-  const _selStk   = LIGHT ? 'rgba(0,0,0,0.4)'  : 'rgba(120,100,255,0.6)';
+  const _gridCol  = LIGHT ? 'rgba(0,0,0,0.18)'   : 'rgba(255,255,255,0.06)';
+  const _axisCol  = LIGHT ? 'rgba(0,0,0,0.65)'   : 'rgba(0,200,255,0.35)';
+  const _axisGlow = LIGHT ? 'rgba(0,0,0,0)'       : 'rgba(0,200,255,0.5)';
+  const _ieCol    = LIGHT ? '#4a30c0'             : '#7b6fff';
+  const _ieGlow   = LIGHT ? 'rgba(0,0,0,0)'       : 'rgba(120,100,255,0.9)';
+  const _keCol    = LIGHT ? '#c8134a'             : '#ff3a6e';
+  const _keGlow   = LIGHT ? 'rgba(0,0,0,0)'       : 'rgba(255,45,100,0.9)';
+  const _selFill  = LIGHT ? 'rgba(74,48,192,0.10)' : 'rgba(120,100,255,0.12)';
+  const _selStk   = LIGHT ? 'rgba(74,48,192,0.55)' : 'rgba(120,100,255,0.6)';
 
   // Faint horizontal grid at 25 / 50 / 75%
   egCtx.strokeStyle = _gridCol;
@@ -4535,6 +4585,8 @@ document.getElementById('themeLight').addEventListener('click', () => {
   draw();
 });
 applyTheme('A');
+document.body.classList.add('screenshot-mode');
+document.getElementById('themeLight').classList.add('active');
 
 // ─── Init ─────────────────────────────────────────────────────────────────────
 syncTabButtons();
@@ -4616,6 +4668,16 @@ document.addEventListener('keydown', e => {
     }
   });
 })();
+
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) {
+    if (_nucleusIconRAF) { cancelAnimationFrame(_nucleusIconRAF); _nucleusIconRAF = null; }
+    if (idleParticleRAF) { cancelAnimationFrame(idleParticleRAF); idleParticleRAF = null; }
+  } else {
+    if (!_nucleusIconRAF) { _iconLast = -67; _nucleusIconEnergy = 1.0; nucleusIconLoop(0); }
+    if (!idleParticleRAF) { idleParticleRAF = requestAnimationFrame(idleParticleLoop); }
+  }
+});
 
 </script>
 
