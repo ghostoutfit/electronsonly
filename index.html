@@ -870,7 +870,7 @@
   <div class="toolbar-row">
     <div id="tabBar"></div>
     <div style="display:flex;align-items:center;gap:6px;margin-left:auto;">
-      <span style="font-size:10px;font-weight:600;letter-spacing:0.06em;color:rgba(255,255,255,0.45);white-space:nowrap;">Field Test Version 1.2</span>
+      <span style="font-size:10px;font-weight:600;letter-spacing:0.06em;color:rgba(255,255,255,0.45);white-space:nowrap;">Field Test Version 1.3</span>
       <select id="qualitySelect">
         <option value="hi-res">Hi-res</option>
         <option value="detailed">Detailed</option>
@@ -1602,6 +1602,7 @@ let egDragStartPx = null, egDragCurPx = null;
 let animParent = null;
 let _imgParent = null;
 let _bgCanvas = null, _bgCtx = null;
+let _trailOC = null, _trailOCCtx = null, _trailOCAZ = null, _trailOCEL = null;
 let _countersDirty = true;
 let _showElectric = false;
 
@@ -1870,6 +1871,87 @@ function drawOrbit3D(ctx) {
   // Trails
   const _visHH = cy - _cachedTbH;  // visible vertical half-height from orbit center
   ctx.lineWidth = 1.5;
+
+  if (_quality === 'simple') {
+    // Accumulation buffer: paint 1 tiny line segment per electron into an OffscreenCanvas each
+    // frame, then fade the whole buffer with a cheap fillRect. This avoids re-projecting and
+    // re-stroking 70+ Bezier points per electron per frame — ~35x less GPU rasterization.
+    const W = canvas.width, H = canvas.height;
+    if (!_trailOC || _trailOC.width !== W || _trailOC.height !== H) {
+      _trailOC = new OffscreenCanvas(W, H);
+      _trailOCCtx = _trailOC.getContext('2d');
+      _trailOCCtx.fillStyle = LIGHT ? '#f0f0f8' : '#05040f';
+      _trailOCCtx.fillRect(0, 0, W, H);
+      _trailOCAZ = orb3dAZ; _trailOCEL = orb3dEL;
+    }
+    // Clear on view rotation so stale screen-space trails don't persist at wrong positions
+    if (Math.abs(orb3dAZ - _trailOCAZ) > 0.001 || Math.abs(orb3dEL - _trailOCEL) > 0.001) {
+      _trailOCCtx.fillStyle = LIGHT ? '#f0f0f8' : '#05040f';
+      _trailOCCtx.fillRect(0, 0, W, H);
+      _trailOCAZ = orb3dAZ; _trailOCEL = orb3dEL;
+    }
+    // Fade existing trails toward background color
+    _trailOCCtx.fillStyle = LIGHT ? 'rgba(240,240,248,0.04)' : 'rgba(5,4,15,0.04)';
+    _trailOCCtx.fillRect(0, 0, W, H);
+    _trailOCCtx.lineWidth = 1.5;
+    _trailOCCtx.lineCap = 'round';
+    for (const s of occupied) {
+      const r3d = getShellRadius(s) * orb3dRadScale * viewZoom;
+      const col = (LIGHT ? SHELL_COLORS_LIGHT : SHELL_COLORS)[s % SHELL_COLORS.length];
+      _trailOCCtx.strokeStyle = col;
+      _trailOCCtx.globalAlpha = 0.9;
+      for (const grp of orb3dShellGroups[s]) {
+        for (let ei = 0; ei < grp.count; ei++) {
+          const trail = grp.trails[ei];
+          const n = trail.length;
+          if (n < 2) continue;
+          const tip = trail[n - 1], prev = trail[n - 2];
+          const [tx, ty] = proj3D(tip[0], tip[1], tip[2], r3d);
+          const [px, py] = proj3D(prev[0], prev[1], prev[2], r3d);
+          _trailOCCtx.beginPath();
+          _trailOCCtx.moveTo(px, py);
+          _trailOCCtx.lineTo(tx, ty);
+          _trailOCCtx.stroke();
+        }
+      }
+    }
+    _trailOCCtx.globalAlpha = 1;
+    ctx.drawImage(_trailOC, 0, 0);
+
+    // Arrow heads on main canvas for Simple mode
+    for (const s of occupied) {
+      const r3d = getShellRadius(s) * orb3dRadScale * viewZoom;
+      const _shellOffScreen = r3d > _visHH * 1.2;
+      const col = (LIGHT ? SHELL_COLORS_LIGHT : SHELL_COLORS)[s % SHELL_COLORS.length];
+      for (const grp of orb3dShellGroups[s]) {
+        for (let ei = 0; ei < grp.count; ei++) {
+          const trail = grp.trails[ei];
+          const n = trail.length;
+          ctx.globalAlpha = 1;
+          if (orb3dDotR > 0 && n > 0 && !_shellOffScreen) {
+            const tip = trail[n - 1];
+            const [tx, ty] = proj3D(tip[0], tip[1], tip[2], r3d);
+            const prev = trail[Math.max(0, n - 3)];
+            const [px2, py2] = proj3D(prev[0], prev[1], prev[2], r3d);
+            let dx = tx - px2, dy = ty - py2;
+            const dl = Math.sqrt(dx * dx + dy * dy);
+            if (dl > 0.5) { dx /= dl; dy /= dl; } else { dx = 1; dy = 0; }
+            const _as = s === occupied[0] ? 1.3 : 1.0;
+            const AW = Math.min(orb3dDotR * r3d / 200 * 0.65 * _as, 7.5), AL = AW / 0.65, perpx = -dy, perpy = dx;
+            ctx.fillStyle = col;
+            ctx.beginPath();
+            ctx.moveTo(tx + dx * AL,             ty + dy * AL);
+            ctx.lineTo(tx - dx * AL + perpx * AW, ty - dy * AL + perpy * AW);
+            ctx.lineTo(tx - dx * AL * 0.25,       ty - dy * AL * 0.25);
+            ctx.lineTo(tx - dx * AL - perpx * AW, ty - dy * AL - perpy * AW);
+            ctx.closePath();
+            ctx.fill();
+          }
+        }
+      }
+    }
+  } else {
+
   for (const s of occupied) {
     const r3d = getShellRadius(s) * orb3dRadScale * viewZoom;
     const _shellOffScreen = r3d > _visHH * 1.2;
@@ -1880,18 +1962,15 @@ function drawOrbit3D(ctx) {
         const trail = grp.trails[ei];
         const n = trail.length;
         if (n >= 2) {
-          const _simple = _quality === 'simple';
-          const _step = _simple ? 2 : 1;
           const pts = [];
-          for (let i = 0; i < n; i += _step) pts.push(proj3D(trail[i][0], trail[i][1], trail[i][2], r3d));
+          for (let i = 0; i < n; i++) pts.push(proj3D(trail[i][0], trail[i][1], trail[i][2], r3d));
           const np = pts.length;
           ctx.strokeStyle = col;
-          const BUCKETS = _simple ? 2 : 32;
-          for (let b = 0; b < BUCKETS; b++) {
-            const i0 = Math.round(b / BUCKETS * (np - 1));
-            const i1 = Math.round((b + 1) / BUCKETS * (np - 1));
+          for (let b = 0; b < 32; b++) {
+            const i0 = Math.round(b / 32 * (np - 1));
+            const i1 = Math.round((b + 1) / 32 * (np - 1));
             if (i1 <= i0) continue;
-            ctx.globalAlpha = ((b + 1) / BUCKETS) * _trailMaxAlpha;
+            ctx.globalAlpha = ((b + 1) / 32) * _trailMaxAlpha;
             ctx.beginPath();
             ctx.moveTo(pts[i0][0], pts[i0][1]);
             const mid0x = (pts[i0][0] + pts[Math.min(i0+1,np-1)][0]) / 2;
@@ -1928,6 +2007,7 @@ function drawOrbit3D(ctx) {
       }
     }
   }
+  } // end else (hi-res/detailed trails)
   ctx.globalAlpha = 1;
 
   // Atomic radius label — same flat horizontal line as Shells tab
