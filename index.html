@@ -870,7 +870,7 @@
   <div class="toolbar-row">
     <div id="tabBar"></div>
     <div style="display:flex;align-items:center;gap:6px;margin-left:auto;">
-      <span style="font-size:10px;font-weight:600;letter-spacing:0.06em;color:rgba(255,255,255,0.45);white-space:nowrap;">Field Test Version 1.1</span>
+      <span style="font-size:10px;font-weight:600;letter-spacing:0.06em;color:rgba(255,255,255,0.45);white-space:nowrap;">Field Test Version 1.2</span>
       <select id="qualitySelect">
         <option value="hi-res">Hi-res</option>
         <option value="detailed">Detailed</option>
@@ -1719,7 +1719,7 @@ function drawOrbit3D(ctx) {
   ctx.scale(viewZoom, viewZoom);
   ctx.translate(-W / 2, -H / 2);
   if (showParticles) {
-    if (_imgParent) {
+    if (_imgParent && _quality === 'simple') {
       const jx = (Math.random() - 0.5) * 0.7, jy = (Math.random() - 0.5) * 0.7;
       ctx.drawImage(_imgParent, animParent.cx - _imgParent.width / 2 + jx, animParent.cy - _imgParent.height / 2 + jy);
     } else {
@@ -3784,7 +3784,7 @@ function idleParticleLoop(now) {
   const _isOrbit = currentTab === 'orbit3d';
   if (_isOrbit || _is15fps) {   // orbit3d: 60fps; shells: ~15fps
     if (!_isOrbit) _idleParticleLast = now;
-    if (!_isOrbit && animParent && showParticles) updateParticleJitter(animParent.particles.length, 1, true);
+    if (animParent && showParticles && (!_isOrbit || _quality !== 'simple')) updateParticleJitter(animParent.particles.length, 1, true);
     if (_isOrbit) { if (!orb3dPaused) stepOrbit3D(); }
     else stepElectronsShells();
     if (animParent || _isOrbit) draw();
