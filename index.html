@@ -1765,7 +1765,7 @@ function drawOrbit3D(ctx) {
     const _gScale = shellBaseR * orb3dRadScale * viewZoom;
     const _step   = 20;
     const _extPm  = Math.min(2000, Math.ceil(Math.hypot(W, H) / 2 / _gScale / _step) * _step);
-    const [_gr, _gg, _gb] = _themeGridRgb;
+    const [_gr, _gg, _gb] = LIGHT ? [85, 85, 85] : _themeGridRgb;
 
     // Cache key covers everything that affects grid geometry, color, or quality tier
     const _cacheKey = `${W}|${H}|${cx.toFixed(1)}|${cy.toFixed(1)}|${_gScale.toFixed(4)}|${_gr},${_gg},${_gb}|${AZ.toFixed(4)}|${EL.toFixed(4)}|${_quality}`;
@@ -2731,7 +2731,7 @@ function _drawGrid(ctx, nucSX, nucSY, W, H, tbH, zoom) {
   const t          = performance.now();
   const pulse      = 0.5 + 0.5 * Math.sin(t / 900);
   const pulseMinor = 0.5 + 0.5 * Math.sin(t / 900 + 1.2);
-  const [gr, gg, gb] = LIGHT ? [120, 120, 120] : _themeGridRgb;
+  const [gr, gg, gb] = LIGHT ? [85, 85, 85] : _themeGridRgb;
 
   const majorAlpha = tron ? 0.45 + 0.35 * pulse      : 0.30;
   const minorAlpha = tron ? 0.07 + 0.08 * pulseMinor : 0.12;
