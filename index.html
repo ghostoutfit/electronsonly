@@ -83,7 +83,7 @@
     letter-spacing: 1.5px;
     text-transform: uppercase;
     cursor: pointer;
-    transition: all 0.2s;
+    transition: color 0.15s, border-color 0.15s, background 0.15s, box-shadow 0.15s;
     box-shadow: none;
     text-shadow: none;
     font-family: inherit;
@@ -140,7 +140,7 @@
     letter-spacing: 1px;
     text-transform: uppercase;
     cursor: pointer;
-    transition: all 0.2s;
+    transition: color 0.15s, border-color 0.15s, background 0.15s, box-shadow 0.15s;
     background: transparent;
     color: rgba(255,255,255,0.18);
     box-shadow: none;
@@ -657,7 +657,7 @@
       0 0 2px var(--accent2), 0 0 8px var(--accent2),
       0 0 18px var(--accent2-glow), 0 0 40px var(--accent2-dim);
     text-shadow: 0 0 4px rgba(255,255,255,0.5), 0 0 10px var(--accent2);
-    transition: all 0.2s;
+    transition: color 0.15s, background 0.15s, box-shadow 0.15s;
   }
   #energyGraphToggle:hover { background: var(--accent2-glow); }
   #energyGraphToggle.active {
@@ -1124,12 +1124,14 @@ function _runPerfBenchmark() {
   return performance.now() - t0;
 }
 
+let _cachedTbH = 0;
 function resize() {
   canvas.width   = window.innerWidth;
   canvas.height  = window.innerHeight;
   egCanvas.width  = Math.max(1, egCanvas.offsetWidth || (window.innerWidth - 112));
   egCanvas.height = 110;
   heatmapDirty   = true;
+  _cachedTbH = document.getElementById('toolbar').offsetHeight;
 }
 resize();
 window.addEventListener('resize', () => {
@@ -1616,6 +1618,8 @@ let _egVersion = 0, _egDrawnVersion = -1;
 let egDragStartPx = null, egDragCurPx = null;
 let animParent = null;
 let _imgParent = null;
+let _countersDirty = true;
+let _showElectric = false;
 
 // ─── Electron physics ─────────────────────────────────────────────────────────
 // Each electron: { x, y, vx, vy, trail: [{x,y}] }
@@ -1729,10 +1733,7 @@ function drawOrbit3D(ctx) {
   if (!animParent || !electrons.length) return;
   const LIGHT = document.body.classList.contains('screenshot-mode');
   const W = canvas.width, H = canvas.height;
-  const tbH = document.getElementById('toolbar').offsetHeight;
-  const _sbH = document.getElementById('scrubBar').classList.contains('visible')
-    ? document.getElementById('scrubBar').offsetHeight : 0;
-  const cy = (tbH + H - _sbH) / 2 + panOffsetY;
+  const cy = (_cachedTbH + H) / 2 + panOffsetY;
   const cx = W * 0.5 + panOffsetX;
 
   // Nucleus — same camera transform as Shells/Trails so it appears at (cx, cy)
@@ -1741,11 +1742,16 @@ function drawOrbit3D(ctx) {
   ctx.scale(viewZoom, viewZoom);
   ctx.translate(-W / 2, -H / 2);
   if (showParticles) {
-    const _svFlat = _flatFill, _svQ = _quality;
-    if (_quality === 'hi-res') _flatFill = false;
-    else if (_quality === 'simple') _quality = 'detailed';
-    drawParticles(animParent.particles, 1);
-    _flatFill = _svFlat; _quality = _svQ;
+    if (_imgParent) {
+      const jx = (Math.random() - 0.5) * 0.7, jy = (Math.random() - 0.5) * 0.7;
+      ctx.drawImage(_imgParent, animParent.cx - _imgParent.width / 2 + jx, animParent.cy - _imgParent.height / 2 + jy);
+    } else {
+      const _svFlat = _flatFill, _svQ = _quality;
+      if (_quality === 'hi-res') _flatFill = false;
+      else if (_quality === 'simple') _quality = 'detailed';
+      drawParticles(animParent.particles, 1);
+      _flatFill = _svFlat; _quality = _svQ;
+    }
   } else drawCloudOutline(animParent.cx, animParent.cy, animParent.sphereR);
   ctx.restore();
 
@@ -1760,7 +1766,7 @@ function drawOrbit3D(ctx) {
 
   const occupied = [...new Set(electrons.map(e => e.shell))].sort((a,b) => a-b);
 
-  const showAR = document.getElementById('showElectric').checked;
+  const showAR = _showElectric;
 
   // 3D grid — cyberpunk neon
   if (showGrid && occupied.length) {
@@ -2541,6 +2547,7 @@ function setNucleusFromZ(Z) {
   for (const e of electrons) e.trail = [];
   document.getElementById('protonSliderVal').textContent = Z;
   document.getElementById('protonSlider').value = Z;
+  _countersDirty = true;
   draw();
 }
 
@@ -3377,7 +3384,7 @@ function drawForceViz() {
   fvc.shadowBlur = 0;
 
   // Force-value label anchor
-  const _outerS = electrons.length ? Math.max(...electrons.map(e => e.shell)) : se.shell;
+  let _outerS = se.shell; if (electrons.length) { for (const _e of electrons) if (_e.shell > _outerS) _outerS = _e.shell; }
   const _rValPx = getShellRadius(_outerS);
   const _rValPm = _rValPx / shellBaseR;
   const _ie     = IE_EV[customZ];
@@ -3701,14 +3708,11 @@ function draw() {
   if (!animParent) { drawEnergyGraph(); return; }
 
   const _W = canvas.width, _H = canvas.height;
-  const _tbH = document.getElementById('toolbar').offsetHeight;
-  const _sbEl = document.getElementById('scrubBar');
-  const _sbH  = _sbEl.classList.contains('visible') ? _sbEl.offsetHeight : 0;
-  const _centerY = (_tbH + _H - _sbH) / 2;
+  const _centerY = (_cachedTbH + _H) / 2;
   const _camX = _W / 2 + getCameraShiftX() + panOffsetX;
 
   if (showGrid) {
-    _drawGrid(ctx, _camX, _centerY + panOffsetY, _W, _H, _tbH, viewZoom);
+    _drawGrid(ctx, _camX, _centerY + panOffsetY, _W, _H, _cachedTbH, viewZoom);
   }
 
   ctx.save();
@@ -3718,11 +3722,16 @@ function draw() {
 
   if (!showParticles) drawCloudOutline(animParent.cx, animParent.cy, animParent.sphereR);
   if (showParticles) {
-    const _svFlat = _flatFill, _svQ = _quality;
-    if (_quality === 'hi-res') _flatFill = false;
-    else if (_quality === 'simple') _quality = 'detailed';
-    drawParticles(animParent.particles, 1);
-    _flatFill = _svFlat; _quality = _svQ;
+    if (_imgParent) {
+      const jx = (Math.random() - 0.5) * 0.7, jy = (Math.random() - 0.5) * 0.7;
+      ctx.drawImage(_imgParent, animParent.cx - _imgParent.width / 2 + jx, animParent.cy - _imgParent.height / 2 + jy);
+    } else {
+      const _svFlat = _flatFill, _svQ = _quality;
+      if (_quality === 'hi-res') _flatFill = false;
+      else if (_quality === 'simple') _quality = 'detailed';
+      drawParticles(animParent.particles, 1);
+      _flatFill = _svFlat; _quality = _svQ;
+    }
   }
 
   if (currentTab === 'trails') drawShellRings(ctx);
@@ -3732,8 +3741,8 @@ function draw() {
   ctx.restore();
 
   // Atomic radius — drawn above the grid in screen space, line and text same color
-  if (document.getElementById('showElectric').checked && electrons.length) {
-    const _outerShell = Math.max(...electrons.map(e => e.shell));
+  if (_showElectric && electrons.length) {
+    let _outerShell = 0; for (const e of electrons) if (e.shell > _outerShell) _outerShell = e.shell;
     const _outerR     = getShellRadius(_outerShell) * viewZoom;
     const _nucSY      = _centerY + panOffsetY;
     const _arPm       = Math.round(_outerR / viewZoom / shellBaseR);
@@ -3767,7 +3776,7 @@ function draw() {
   }
 
   drawEnergyGraph();
-  updateParticleCounters();
+  if (_countersDirty) { updateParticleCounters(); _countersDirty = false; }
   drawForceViz();
 }
 
@@ -3827,6 +3836,7 @@ document.getElementById('autoscaleCheckbox').addEventListener('change', function
 });
 
 document.getElementById('showElectric').addEventListener('change', function() {
+  _showElectric = this.checked;
   logAction('Atomic radius: ' + (this.checked ? 'on' : 'off'));
   heatmapDirty = true;
   draw();
@@ -4436,10 +4446,7 @@ canvas.addEventListener('click', e => {
 
   // Convert screen → world
   const _W = canvas.width, _H = canvas.height;
-  const _tbH = document.getElementById('toolbar').offsetHeight;
-  const _sbEl = document.getElementById('scrubBar');
-  const _sbH  = _sbEl.classList.contains('visible') ? _sbEl.offsetHeight : 0;
-  const _centerY = (_tbH + _H - _sbH) / 2;
+  const _centerY = (_cachedTbH + _H) / 2;
   const _camX2 = _W / 2 + getCameraShiftX() + panOffsetX;
   const wx = (sx - _camX2) / viewZoom + _W / 2;
   const wy = (sy - (_centerY + panOffsetY)) / viewZoom + _H / 2;
