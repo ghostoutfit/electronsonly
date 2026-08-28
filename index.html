@@ -870,6 +870,7 @@
   <div class="toolbar-row">
     <div id="tabBar"></div>
     <div style="display:flex;align-items:center;gap:6px;margin-left:auto;">
+      <span style="font-size:10px;font-weight:600;letter-spacing:0.06em;color:rgba(255,255,255,0.45);white-space:nowrap;">Field Test Version 1</span>
       <select id="qualitySelect">
         <option value="hi-res">Hi-res</option>
         <option value="detailed">Detailed</option>
@@ -950,9 +951,9 @@
         <div style="display:flex;flex-direction:column;gap:4px">
           <button class="awheel-item" data-tab="orbit3d" style="min-width:72px;text-align:center">Trails</button>
           <button class="awheel-item active" data-tab="shells" style="min-width:72px;text-align:center">Shells</button>
+
           <button id="showForcesBtn" class="awheel-item" style="display:none;min-width:72px;text-align:center;white-space:normal;line-height:1.25;padding:4px 8px;font-size:13px">Show<br>forces</button>
           <button id="hideForcesBtn" class="awheel-item" style="display:none;min-width:72px;text-align:center;white-space:normal;line-height:1.25;padding:4px 8px;font-size:13px">Hide<br>forces</button>
-          <button class="awheel-item" data-tab="trails" id="trailsTabBtn" style="display:none;padding:3px 18px;font-size:15px">iTunes Visualizer</button>
         </div>
       </div>
     </div>
@@ -978,12 +979,6 @@
   </div>
   <div id="devSlidersRow" class="toolbar-row dev-ui" style="display:none;gap:18px;flex-wrap:wrap;padding-top:4px;border-top:1px solid var(--ui-border)">
     <div class="dev-row" style="display:none"><label>k</label><input type="range" id="slK" min="1000" max="500000" step="5000" value="140000"><span class="dev-val" id="slKVal">140000</span></div>
-    <div class="dev-row" style="display:none"><label>e⁻ rep</label><input type="range" id="slRepulse" min="0" max="200000" step="2000" value="50000"><span class="dev-val" id="slRepulseVal">50000</span></div>
-    <div class="dev-row" style="display:none"><label>Damp</label><input type="range" id="slDamp" min="0.990" max="1.000" step="0.0001" value="1.000"><span class="dev-val" id="slDampVal">1.0000</span></div>
-    <div class="dev-row" style="display:none"><label>Min r</label><input type="range" id="slMinR" min="5" max="100" step="1" value="80"><span class="dev-val" id="slMinRVal">80</span></div>
-    <div class="dev-row" style="display:none"><label>Max r</label><input type="range" id="slMaxR" min="5" max="500" step="5" value="90"><span class="dev-val" id="slMaxRVal">90</span></div>
-    <div class="dev-row" style="display:none"><label>dt</label><input type="range" id="slDt" min="0.05" max="2.0" step="0.05" value="1.45"><span class="dev-val" id="slDtVal">1.45</span></div>
-    <div class="dev-row" style="display:none"><label>Trail</label><input type="range" id="slTrail" min="0" max="300" step="5" value="105"><span class="dev-val" id="slTrailVal">105</span></div>
     <div class="dev-row"><label>px/pm</label><input type="range" id="slBaseR" min="2" max="50" step="1" value="15"><span class="dev-val" id="slBaseRVal">15</span></div>
     <div class="dev-row"><label>dot size</label><input type="range" id="slElectronDot" min="0" max="20" step="0.5" value="9"><span class="dev-val" id="slElectronDotVal">9.0</span></div>
     <div class="dev-row" style="display:none"><label>shrink</label><input type="range" id="slShrink" min="0" max="1" step="0.01" value="0.05"><span class="dev-val" id="slShrinkVal">0.05</span></div>
@@ -1147,17 +1142,9 @@ window.addEventListener('resize', () => {
     animParent.cx = newCx; animParent.cy = newCy;
     for (const p of animParent.particles) { p.x += dx; p.y += dy; }
     buildNucleusImages();
-    for (const e of electrons) {
-      e.x += dx; e.y += dy;
-      for (const t of e.trail) { t.x += dx; t.y += dy; }
-    }
     if (animParentB) {
       animParentB.cx += dx; animParentB.cy += dy;
       for (const p of animParentB.particles) { p.x += dx; p.y += dy; }
-      for (const e of electronsB) {
-        e.x += dx; e.y += dy;
-        for (const t of e.trail) { t.x += dx; t.y += dy; }
-      }
     }
   }
   if (autoScaleZoom) applyAutoScale();
@@ -1618,22 +1605,16 @@ let _egVersion = 0, _egDrawnVersion = -1;
 let egDragStartPx = null, egDragCurPx = null;
 let animParent = null;
 let _imgParent = null;
+let _bgCanvas = null, _bgCtx = null;
 let _countersDirty = true;
 let _showElectric = false;
 
 // ─── Electron physics ─────────────────────────────────────────────────────────
 // Each electron: { x, y, vx, vy, trail: [{x,y}] }
 let electrons = [];
-let eK = 140000, eRepulse = 50000, eDamp = 1, eMinR = 80, eMaxR = 90, eDt = 1.45;
-let eTrailLen = 105;
+let eK = 140000;
 const SHELL_COLORS       = ['#ff4488', '#00ddff', '#ff8800', '#88ff00'];
 const SHELL_COLORS_LIGHT = ['#c4004e', '#0077bb', '#bb4400', '#3d8800'];
-let shellK          = [140000, 11000, 91000, 140000]; // per-shell nuclear k
-let shellWallMult   = [1.0, 0.35, 0.95, 1.0];         // per-shell wall engagement multiplier
-let shellWallK      = [15, 155, 815, 15];              // per-shell wall stiffness
-let shellVMax       = [0.5, 0.25, 0.6, 0.5];          // per-shell V_MAX coefficient (× shellRadius)
-let shellRadialDamp = [0, 0, 0, 0];                    // fraction of radial velocity removed per frame (0 = off, 1 = fully tangential)
-let shellMinR       = [80, 80, 170, 80];               // per-shell inner hard floor clearance beyond nucleus surface
 
 // Shell definitions: capacity (max electrons), maxR (outer soft-wall radius)
 // Shell 2 can hold 18e via d-fill (transition metals); see getShellForNewElectron
@@ -1671,7 +1652,7 @@ let orb3dShellGroups = Array.from({length: ORB3D_N}, () => []);
 // Each group: { count:1|2, phase, wanderPh, radPh, axisPhi, trails:[[],[]] }
 
 // Per-shell tunable parameters
-let orbShellSpeed    = [8.0, 7.0, 6.0, 5.0];
+let orbShellSpeed    = [6.0, 5.25, 4.5, 3.75];
 let orbShellRadAmp   = [0.20, 0.20, 0.10, 0.05];
 let orbShellWander   = [45,   50,   55,   60];
 let orbShellTrailLen = [140,  140,  140,  140];
@@ -1891,7 +1872,7 @@ function drawOrbit3D(ctx) {
   }
 
   // Trails
-  const _visHH = cy - tbH;  // visible vertical half-height from orbit center
+  const _visHH = cy - _cachedTbH;  // visible vertical half-height from orbit center
   ctx.lineWidth = 1.5;
   for (const s of occupied) {
     const r3d = getShellRadius(s) * orb3dRadScale * viewZoom;
@@ -1905,7 +1886,7 @@ function drawOrbit3D(ctx) {
         if (n >= 2) {
           const proj = trail.map(p => proj3D(p[0], p[1], p[2], r3d));
           ctx.strokeStyle = col;
-          const BUCKETS = 16;
+          const BUCKETS = 32;
           for (let b = 0; b < BUCKETS; b++) {
             const i0 = Math.round(b / BUCKETS * (n - 1));
             const i1 = Math.round((b + 1) / BUCKETS * (n - 1));
@@ -1913,11 +1894,11 @@ function drawOrbit3D(ctx) {
             ctx.globalAlpha = ((b + 1) / BUCKETS) * _trailMaxAlpha;
             ctx.beginPath();
             ctx.moveTo(proj[i0][0], proj[i0][1]);
-            if (i1 > i0 + 1) {
-              ctx.lineTo((proj[i0][0] + proj[i0+1][0]) / 2, (proj[i0][1] + proj[i0+1][1]) / 2);
-              for (let i = i0 + 1; i < i1; i++)
-                ctx.quadraticCurveTo(proj[i][0], proj[i][1], (proj[i][0] + proj[i+1][0]) / 2, (proj[i][1] + proj[i+1][1]) / 2);
-            }
+            const mid0x = (proj[i0][0] + proj[Math.min(i0+1,n-1)][0]) / 2;
+            const mid0y = (proj[i0][1] + proj[Math.min(i0+1,n-1)][1]) / 2;
+            ctx.lineTo(mid0x, mid0y);
+            for (let i = i0 + 1; i < i1; i++)
+              ctx.quadraticCurveTo(proj[i][0], proj[i][1], (proj[i][0] + proj[i+1][0]) / 2, (proj[i][1] + proj[i+1][1]) / 2);
             ctx.lineTo(proj[i1][0], proj[i1][1]);
             ctx.stroke();
           }
@@ -1978,7 +1959,7 @@ function drawOrbit3D(ctx) {
     ctx.font = '12px Lexend, sans-serif';
     ctx.textAlign = 'center';
     ctx.fillStyle = 'rgba(180,220,255,0.5)';
-    ctx.fillText('drag to rotate  ·  click to resume', W / 2, tbH + 22);
+    ctx.fillText('drag to rotate  ·  click to resume', W / 2, _cachedTbH + 22);
     ctx.restore();
   }
 
@@ -2181,17 +2162,11 @@ function _respaceShell(shell) {
   const n = inShell.length;
   if (n <= 1) return;
   const cx = animParent.cx, cy = animParent.cy;
-  const shellR = getShellRadius(shell);
-  const vCirc = Math.sqrt(eK / shellR) * eDt * 30;
   const anchor = inShell[0].angle;
   for (let i = 0; i < n; i++) {
     const a = (anchor + (2 * Math.PI * i) / n) % (2 * Math.PI);
     const e = inShell[i];
     e.angle = a;
-    e.x = cx + Math.cos(a) * shellR;
-    e.y = cy + Math.sin(a) * shellR;
-    e.vx = -Math.sin(a) * vCirc;
-    e.vy =  Math.cos(a) * vCirc;
     e.dAngle = 0.018;
     e.dRadial = 0;
     e.radialOffset = 0;
@@ -2215,13 +2190,7 @@ function addElectron() {
     const my = inShell.reduce((s, e) => s + Math.sin(e.angle), 0);
     angle = Math.atan2(-my, -mx); // opposite the cluster centroid
   }
-  const vCirc = Math.sqrt(eK / shellR) * eDt * 30;
   electrons.push({
-    x: cx + Math.cos(angle) * shellR,
-    y: cy + Math.sin(angle) * shellR,
-    vx: -Math.sin(angle) * vCirc,
-    vy:  Math.cos(angle) * vCirc,
-    trail: [],
     shell,
     angle,
     dAngle: 0.018,
@@ -2361,120 +2330,6 @@ function updateElectronCount() {
   syncFormBtnActive();
 }
 
-function stepElectrons() {
-  if (!animParent || !electrons.length) return;
-  const cx = animParent.cx, cy = animParent.cy;
-  for (const e of electrons) {
-    const shellMaxR = getShellRadius(e.shell);
-    const V_MAX = shellMaxR * (shellVMax[e.shell] ?? 0.5);
-    const minR = e.shell === 0
-      ? animParent.sphereR + (shellMinR[e.shell] ?? eMinR)
-      : getShellRadius(e.shell - 1);
-    const dx = cx - e.x, dy = cy - e.y;
-    let dist = Math.sqrt(dx * dx + dy * dy);
-    if (dist < minR) dist = minR;
-    const F = (shellK[e.shell] ?? eK) / (dist * dist);
-    const ax = F * dx / dist;
-    const ay = F * dy / dist;
-    e.vx += ax * eDt;
-    e.vy += ay * eDt;
-    e.vx *= eDamp;
-    e.vy *= eDamp;
-    const spd = Math.sqrt(e.vx * e.vx + e.vy * e.vy);
-    if (spd > V_MAX) { const s = V_MAX / spd; e.vx *= s; e.vy *= s; }
-    e.x += e.vx * eDt;
-    e.y += e.vy * eDt;
-    const ndx = e.x - cx, ndy = e.y - cy;
-    const nd = Math.sqrt(ndx * ndx + ndy * ndy);
-    if (nd < minR) {
-      const inv = minR / nd;
-      e.x = cx + ndx * inv;
-      e.y = cy + ndy * inv;
-      const dot = e.vx * ndx / nd + e.vy * ndy / nd;
-      if (dot < 0) { e.vx -= 2 * dot * ndx / nd; e.vy -= 2 * dot * ndy / nd; }
-    }
-    // Soft walls: shell 0 has inner+outer with quadratic ramp; outer shells outer-only with linear ramp
-    const innerWall = e.shell === 0 ? minR : getShellRadius(e.shell - 1);
-    const nextShellR = e.shell + 1 < SHELLS.length ? getShellRadius(e.shell + 1) : shellMaxR * 1.5;
-    const outerZone = e.shell === 0 ? (nextShellR - shellMaxR) * 0.5 : shellMaxR * 0.2;
-    const wallStart = shellMaxR * (shellWallMult[e.shell] ?? 1.0);
-    if (nd > wallStart) {
-      const t = Math.min((nd - wallStart) / outerZone, 1);
-      const ramp = e.shell === 0 ? t * t : t;
-      const wallAcc = ((shellK[e.shell] ?? eK) / (shellMaxR * shellMaxR)) * ramp * (shellWallK[e.shell] ?? 15);
-      e.vx -= wallAcc * (ndx / nd) * eDt;
-      e.vy -= wallAcc * (ndy / nd) * eDt;
-    }
-    if (e.shell === 0 && nd < shellMaxR && nd > innerWall) {
-      const gap = shellMaxR - innerWall;
-      const t = Math.min((shellMaxR - nd) / (gap * 0.5), 1);
-      const wallAcc = ((shellK[0] ?? eK) / (shellMaxR * shellMaxR)) * t * t * 8;
-      e.vx += wallAcc * (ndx / nd) * eDt;
-      e.vy += wallAcc * (ndy / nd) * eDt;
-    }
-    const rd = shellRadialDamp[e.shell] ?? 0;
-    if (rd > 0 && nd > 0) {
-      const vr =  e.vx * ndx / nd + e.vy * ndy / nd;
-      const vt = -e.vx * ndy / nd + e.vy * ndx / nd;
-      const limit = rd * Math.abs(vt);
-      if (Math.abs(vr) > limit) {
-        const excess = vr - Math.sign(vr) * limit;
-        e.vx -= 0.01 * excess * ndx / nd;
-        e.vy -= 0.01 * excess * ndy / nd;
-      }
-    }
-    e.trail.push({ x: e.x, y: e.y });
-    if (e.trail.length > eTrailLen) e.trail.shift();
-  }
-}
-
-// Project a world-space point through the current canvas transform to screen pixels.
-// We read the live DOMMatrix so this stays in sync with whatever transform draw() set.
-function _worldToScreen(ctx, wx, wy) {
-  const m = ctx.getTransform();
-  return { x: m.a * wx + m.c * wy + m.e, y: m.b * wx + m.d * wy + m.f };
-}
-
-function drawElectrons(ctx) {
-  if (!electrons.length || !_eGlowImg) return;
-
-  // Project all trail points and heads to screen space before we reset the transform.
-  // This keeps glow size and trail width constant in screen pixels regardless of zoom.
-  const screenElectrons = electrons.map(e => ({
-    sx: _worldToScreen(ctx, e.x, e.y),
-    trail: e.trail.map(p => _worldToScreen(ctx, p.x, p.y)),
-    color: SHELL_COLORS[e.shell % SHELL_COLORS.length],
-  }));
-
-  ctx.save();
-  ctx.setTransform(1, 0, 0, 1, 0, 0); // draw in screen space
-  ctx.lineCap = 'round';
-  ctx.lineJoin = 'round';
-  ctx.lineWidth = 1.5;
-
-  for (const se of screenElectrons) {
-    const pts = se.trail;
-    const n = pts.length;
-    if (n < 2) continue;
-    ctx.strokeStyle = se.color;
-    for (let i = 1; i < n; i++) {
-      const t = i / (n - 1);
-      ctx.globalAlpha = t * t * t * 0.9;
-      const p0 = pts[i - 1];
-      const p1 = pts[i];
-      const sx = i === 1 ? p0.x : (pts[i - 2].x + p0.x) / 2;
-      const sy = i === 1 ? p0.y : (pts[i - 2].y + p0.y) / 2;
-      const ex = (p0.x + p1.x) / 2;
-      const ey = (p0.y + p1.y) / 2;
-      ctx.beginPath();
-      ctx.moveTo(sx, sy);
-      ctx.quadraticCurveTo(p0.x, p0.y, ex, ey);
-      ctx.stroke();
-    }
-  }
-
-  ctx.restore();
-}
 
 // Auto neutron count: 1:1 up to Z=20, then +0.1× per 10 protons above 20.
 function autoNeutrons(Z) {
@@ -2543,8 +2398,6 @@ function setNucleusFromZ(Z) {
     animParent = generateNucleus(Z, N, W / 2, H / 2, currentSeed);
     buildNucleusImages();
   }
-  // Keep shell electrons but clear trails since nucleus changed
-  for (const e of electrons) e.trail = [];
   document.getElementById('protonSliderVal').textContent = Z;
   document.getElementById('protonSlider').value = Z;
   _countersDirty = true;
@@ -2881,7 +2734,7 @@ const SHELL_RADIAL_DAMP   = 0.92;    // radial velocity damping
 const SHELL_RADIAL_RESTORE = 0.018;  // restoring spring toward shell center radius
 let eRadialJitter = 1.0;             // stochastic radial kick magnitude
 
-function stepElectronsShells() {
+function stepElectronsShells(_onlyShell = -1) {
   if (!animParent || !electrons.length) return;
 
   // Same-shell repulsion: angular (1/dA, longer range) + radial (one in, one out)
@@ -2889,6 +2742,7 @@ function stepElectronsShells() {
     for (let j = i + 1; j < electrons.length; j++) {
       const ei = electrons[i], ej = electrons[j];
       if (ei.shell !== ej.shell) continue;
+      if (_onlyShell >= 0 && ei.shell !== _onlyShell) continue;
       let dA = ei.angle - ej.angle;
       dA = ((dA + Math.PI) % (Math.PI * 2) + Math.PI * 2) % (Math.PI * 2) - Math.PI;
       const absDA = Math.abs(dA);
@@ -2906,6 +2760,7 @@ function stepElectronsShells() {
   }
 
   for (const e of electrons) {
+    if (_onlyShell >= 0 && e.shell !== _onlyShell) continue;
     // Enforce minimum orbital speed — always cruising
     const dir = e.dAngle >= 0 ? 1 : -1;
     if (Math.abs(e.dAngle) < SHELL_BASE_DA) {
@@ -2930,7 +2785,7 @@ function stepElectronsShells() {
   }
 }
 
-function drawElectronsShells(ctx) {
+function drawElectronsShells(ctx, _skipOuterGlows = -1) {
   if (!animParent || !electrons.length) return;
   if (!_eGlowImg) _buildElectronGlow();
   const LIGHT = document.body.classList.contains('screenshot-mode');
@@ -2996,6 +2851,7 @@ function drawElectronsShells(ctx) {
   const _glowImg = LIGHT ? _eGlowImgLight : _eGlowImg;
   if (electronDotR > 0 && _glowImg) {
     for (const e of electrons) {
+      if (e.shell === _skipOuterGlows) continue;
       const r = getShellRadius(e.shell) + (e.radialOffset || 0);
       const ex = cx + Math.cos(e.angle) * r;
       const ey = cy + Math.sin(e.angle) * r;
@@ -3005,6 +2861,7 @@ function drawElectronsShells(ctx) {
 
   ctx.fillStyle = 'rgba(255,255,220,0.95)';
   for (const e of electrons) {
+    if (e.shell === _skipOuterGlows) continue;
     const r = getShellRadius(e.shell) + (e.radialOffset || 0);
     ctx.beginPath();
     ctx.arc(cx + Math.cos(e.angle) * r, cy + Math.sin(e.angle) * r, coreR, 0, Math.PI * 2);
@@ -3014,24 +2871,35 @@ function drawElectronsShells(ctx) {
   ctx.restore();
 }
 
-
-function drawShellRings(ctx) {
+function _drawOuterShellGlow(ctx, shell) {
   if (!animParent || !electrons.length) return;
+  if (!_eGlowImg) _buildElectronGlow();
+  const LIGHT = document.body.classList.contains('screenshot-mode');
   const cx = animParent.cx, cy = animParent.cy;
-  const occupied = [...new Set(electrons.map(e => e.shell))];
-  ctx.save();
-  ctx.setLineDash([6, 10]);
-  ctx.lineWidth = 1;
-  ctx.globalAlpha = 0.35;
-  for (const s of occupied) {
-    const r = getShellRadius(s);
-    ctx.strokeStyle = SHELL_COLORS[s % SHELL_COLORS.length];
-    ctx.beginPath();
-    ctx.arc(cx, cy, r, 0, Math.PI * 2);
-    ctx.stroke();
+  const Z = viewZoom;
+  const worldR = electronDotR / Z;
+  const coreR = electronDotR / 6 / Z;
+  const _glowImg = LIGHT ? _eGlowImgLight : _eGlowImg;
+  if (electronDotR > 0 && _glowImg) {
+    for (const e of electrons) {
+      if (e.shell !== shell) continue;
+      const r = getShellRadius(e.shell) + (e.radialOffset || 0);
+      const ex = cx + Math.cos(e.angle) * r;
+      const ey = cy + Math.sin(e.angle) * r;
+      ctx.drawImage(_glowImg, ex - worldR, ey - worldR, worldR * 2, worldR * 2);
+    }
   }
-  ctx.restore();
+  ctx.fillStyle = 'rgba(255,255,220,0.95)';
+  for (const e of electrons) {
+    if (e.shell !== shell) continue;
+    const r = getShellRadius(e.shell) + (e.radialOffset || 0);
+    ctx.beginPath();
+    ctx.arc(cx + Math.cos(e.angle) * r, cy + Math.sin(e.angle) * r, coreR, 0, Math.PI * 2);
+    ctx.fill();
+  }
 }
+
+
 
 // ─── Force viz panel ──────────────────────────────────────────────────────────
 const FV_NUC_COLOR  = 'rgba(255,68,204,0.88)';   // magenta — nuclear attraction
@@ -3710,6 +3578,7 @@ function draw() {
   const _W = canvas.width, _H = canvas.height;
   const _centerY = (_cachedTbH + _H) / 2;
   const _camX = _W / 2 + getCameraShiftX() + panOffsetX;
+  const _valenceShell = (currentTab === 'shells' && electrons.length) ? electrons.reduce((m, e) => Math.max(m, e.shell), 0) : -1;
 
   if (showGrid) {
     _drawGrid(ctx, _camX, _centerY + panOffsetY, _W, _H, _cachedTbH, viewZoom);
@@ -3734,15 +3603,13 @@ function draw() {
     }
   }
 
-  if (currentTab === 'trails') drawShellRings(ctx);
-  if (currentTab === 'trails') drawElectrons(ctx);
-  else drawElectronsShells(ctx);
+  drawElectronsShells(ctx, _valenceShell);
 
   ctx.restore();
 
   // Atomic radius — drawn above the grid in screen space, line and text same color
   if (_showElectric && electrons.length) {
-    let _outerShell = 0; for (const e of electrons) if (e.shell > _outerShell) _outerShell = e.shell;
+    const _outerShell = electrons.reduce((m, e) => Math.max(m, e.shell), 0);
     const _outerR     = getShellRadius(_outerShell) * viewZoom;
     const _nucSY      = _centerY + panOffsetY;
     const _arPm       = Math.round(_outerR / viewZoom / shellBaseR);
@@ -3778,6 +3645,23 @@ function draw() {
   drawEnergyGraph();
   if (_countersDirty) { updateParticleCounters(); _countersDirty = false; }
   drawForceViz();
+
+  if (_valenceShell >= 0) {
+    // Snapshot full frame (minus outer glows) for 60fps composite fast path
+    if (!_bgCanvas || _bgCanvas.width !== _W || _bgCanvas.height !== _H) {
+      _bgCanvas = new OffscreenCanvas(_W, _H);
+      _bgCtx = _bgCanvas.getContext('2d');
+    }
+    _bgCtx.clearRect(0, 0, _W, _H);
+    _bgCtx.drawImage(canvas, 0, 0);
+    // Draw valence glows on main canvas to complete this 15fps frame
+    ctx.save();
+    ctx.translate(_camX, _centerY + panOffsetY);
+    ctx.scale(viewZoom, viewZoom);
+    ctx.translate(-_W / 2, -_H / 2);
+    _drawOuterShellGlow(ctx, _valenceShell);
+    ctx.restore();
+  }
 }
 
 // ─── Particle counter + mass ───────────────────────────────────────────────────
@@ -3894,13 +3778,30 @@ document.getElementById('energyGraphToggle').addEventListener('click', function(
 let idleParticleRAF = null;
 let _idleParticleLast = 0;
 function idleParticleLoop(now) {
-  if (now - _idleParticleLast >= 67) {   // ~15 fps
-    _idleParticleLast = now;
+  const _isShells = currentTab === 'shells';
+  const _is15fps = now - _idleParticleLast >= 67;
+
+  const _isOrbit = currentTab === 'orbit3d';
+  if (_isOrbit || _is15fps) {   // orbit3d: 60fps; shells: ~15fps
+    if (!_isOrbit) _idleParticleLast = now;
     if (animParent && showParticles) updateParticleJitter(animParent.particles.length, 1, true);
-    if (currentTab === 'trails') stepElectrons();
-    else if (currentTab === 'orbit3d') { if (!orb3dPaused) stepOrbit3D(); }
+    if (_isOrbit) { if (!orb3dPaused) stepOrbit3D(); }
     else stepElectronsShells();
-    if (animParent || currentTab === 'orbit3d') draw();
+    if (animParent || _isOrbit) draw();
+  } else if (_isShells && animParent && electrons.length && _bgCanvas) {
+    // 60fps fast path: step only valence electrons, composite from 15fps snapshot
+    const _vs = electrons.reduce((m, e) => Math.max(m, e.shell), 0);
+    stepElectronsShells(_vs);
+    const _W = canvas.width, _H = canvas.height;
+    const _centerY = (_cachedTbH + _H) / 2;
+    const _camX = _W / 2 + getCameraShiftX() + panOffsetX;
+    ctx.drawImage(_bgCanvas, 0, 0);
+    ctx.save();
+    ctx.translate(_camX, _centerY + panOffsetY);
+    ctx.scale(viewZoom, viewZoom);
+    ctx.translate(-_W / 2, -_H / 2);
+    _drawOuterShellGlow(ctx, _vs);
+    ctx.restore();
   }
   idleParticleRAF = requestAnimationFrame(idleParticleLoop);
 }
@@ -3934,13 +3835,11 @@ let _YLBL_PERP = 30;   // net label offset perpendicular (px)
 
 // ─── Tab switching ────────────────────────────────────────────────────────────
 const _devSlidersRow = document.getElementById('devSlidersRow');
-const _shellsOnlyHide = ['slRepulse', 'slDamp', 'slMinR', 'slMaxR'].map(id => document.getElementById(id)?.closest('.dev-row'));
 const _orbit3dOverlay = document.getElementById('orbit3dOverlay');
 function _syncDevSliders() {
   const isOrbit = currentTab === 'orbit3d';
   const isShells = currentTab === 'shells';
   const devOn = document.getElementById('devToggle').checked;
-  _shellsOnlyHide.forEach(row => { if (row) row.style.display = isShells ? 'none' : ''; });
   const shellDev = document.getElementById('shellDevSliders');
   if (shellDev) shellDev.style.display = isOrbit ? 'none' : '';
   if (isOrbit) {
@@ -4105,12 +4004,6 @@ var syncShellDevSliders = function() {}; // populated by _wireDevSliders once sh
     });
   }
   bind('slK',     'slKVal',     v => { eK       = v; }, v => Math.round(v));
-  bind('slDamp',  'slDampVal',  v => { eDamp    = v; }, v => v.toFixed(4));
-  bind('slRepulse','slRepulseVal',v => { eRepulse = v; }, v => Math.round(v));
-  bind('slMinR',  'slMinRVal',  v => { eMinR    = v; }, v => Math.round(v));
-  bind('slMaxR',  'slMaxRVal',  v => { eMaxR    = v; }, v => Math.round(v));
-  bind('slDt',    'slDtVal',    v => { eDt      = v; }, v => v.toFixed(2));
-  bind('slTrail',  'slTrailVal',  v => { eTrailLen = Math.round(v); for (const e of electrons) { if (e.trail.length > eTrailLen) e.trail.splice(0, e.trail.length - eTrailLen); } }, v => Math.round(v));
   bind('slBaseR',  'slBaseRVal',  v => { shellBaseR  = v; }, v => v.toFixed(0));
   bind('slElectronDot', 'slElectronDotVal', v => { electronDotR = v; }, v => v.toFixed(1));
   bind('slFvExp', 'slFvExpVal', v => { fvArrowExp = v; drawForceViz(); }, v => v.toFixed(2));
@@ -4118,14 +4011,7 @@ var syncShellDevSliders = function() {}; // populated by _wireDevSliders once sh
   bind('slAngularJitter', 'slAngularJitterVal', v => { SHELL_JITTER = v; }, v => v.toFixed(4));
   bind('slBandHW', 'slBandHWVal', v => { eShellBandHW = v; }, v => Math.round(v));
   // ── Per-shell dev sliders (generated dynamically) ─────────────────────────────────────────
-  const SHELL_SLIDER_DEFS = [
-    { key: 'k',    label: 'k',         min: 1000,  max: 500000, step: 5000,  fmt: v => Math.round(v),   get: s => shellK[s],        set: (s,v) => { shellK[s] = v; } },
-    { key: 'wm',   label: 'wall mult', min: 0.1,   max: 3.0,    step: 0.05,  fmt: v => v.toFixed(2),    get: s => shellWallMult[s], set: (s,v) => { shellWallMult[s] = v; } },
-    { key: 'wk',   label: 'wall k',    min: 0,     max: 2000,   step: 5,     fmt: v => Math.round(v),   get: s => shellWallK[s],    set: (s,v) => { shellWallK[s] = v; } },
-    { key: 'vm',   label: 'v max',     min: 0.05,  max: 3.0,    step: 0.05,  fmt: v => v.toFixed(2),    get: s => shellVMax[s],     set: (s,v) => { shellVMax[s] = v; } },
-    { key: 'mr',   label: 'min r',     min: 0,     max: 200,    step: 1,     fmt: v => Math.round(v),    get: s => shellMinR[s],       set: (s,v) => { shellMinR[s] = v; } },
-    { key: 'rd',   label: 'tan steer', min: 0,     max: 1.0,    step: 0.01,  fmt: v => v.toFixed(2),    get: s => shellRadialDamp[s], set: (s,v) => { shellRadialDamp[s] = v; } },
-  ];
+  const SHELL_SLIDER_DEFS = [];
   const shellDevContainer = document.getElementById('shellDevSliders');
   shellDevContainer.style.cssText = 'display:flex;flex-direction:row;gap:16px;align-items:flex-start;flex-wrap:wrap';
   const _shellGroups = [];
@@ -4668,19 +4554,6 @@ document.addEventListener('keydown', e => {
   if (e.key === 'Escape' && document.getElementById('bugModal').style.display === 'flex') closeBugModal();
 });
 
-// Secret: typing "itunes" reveals the iTunes Visualizer tab
-(function() {
-  const secret = 'itunes';
-  let buf = '';
-  document.addEventListener('keydown', e => {
-    if (e.key.length !== 1) return;  // ignore Tab, Escape, ArrowUp, etc.
-    buf = (buf + e.key.toLowerCase()).slice(-secret.length);
-    if (buf === secret) {
-      const btn = document.getElementById('trailsTabBtn');
-      if (btn) btn.style.display = 'block';
-    }
-  });
-})();
 
 document.addEventListener('visibilitychange', () => {
   if (document.hidden) {
