@@ -994,7 +994,7 @@
     <div id="shellDevSliders"></div>
   </div>
 </div>
-<div id="orbit3dOverlay" class="dev-ui" style="display:none;position:fixed;bottom:0;left:0;right:0;z-index:90;background:rgba(5,4,15,0.92);backdrop-filter:blur(8px);border-top:1px solid rgba(26,110,255,0.18);padding:10px 18px 12px">
+<div id="orbit3dOverlay" class="dev-ui" style="display:none;position:fixed;bottom:0;left:0;right:0;z-index:90;background:rgba(5,4,15,0.92);border-top:1px solid rgba(26,110,255,0.18);padding:10px 18px 12px">
   <div id="orbit3dDevSliders" style="display:flex;gap:16px;align-items:flex-start;flex-wrap:wrap"></div>
 </div>
 <div id="forceVizPanel">
@@ -1136,6 +1136,7 @@ window.addEventListener('resize', () => {
   const oldCx = animParent ? animParent.cx : null;
   const oldCy = animParent ? animParent.cy : null;
   resize();
+  _egVersion++;
   heatmapDirty = true;
   if (animParent && oldCx !== null) {
     const newCx = canvas.width / 2;
@@ -1611,6 +1612,7 @@ let showParticles = true;
 let currentScrubFrac = 0;
 let maxRevealedFrac  = 0;   // high-water mark — graph line never erases back
 let egZoomStart = 0, egZoomEnd = 1;
+let _egVersion = 0, _egDrawnVersion = -1;
 let egDragStartPx = null, egDragCurPx = null;
 let animParent = null;
 let _imgParent = null;
@@ -2738,7 +2740,7 @@ function _drawGrid(ctx, nucSX, nucSY, W, H, tbH, zoom) {
   const majorColor = tron ? `rgba(${gr},${gg},${gb},${majorAlpha})`  : `rgba(${gr},${gg},${gb},${majorAlpha})`;
   const minorColor = tron ? `rgba(${gr},${gg},${gb},${minorAlpha})`  : `rgba(${gr},${gg},${gb},${minorAlpha})`;
   const glowColor  = `rgb(${gr},${gg},${gb})`;
-  const glowBlur   = tron ? 6 + 10 * pulse : 0;
+  const glowBlur   = 0; // shadowBlur on grid major lines reserved for hi-res only (see below)
 
   ctx.save();
 
@@ -3039,7 +3041,7 @@ function fvArrowOnCtx(c, fromX, fromY, nx, ny, len, color, lw, headLen) {
   const baseX = tipX - nx * HEAD, baseY = tipY - ny * HEAD;
   c.strokeStyle = color; c.fillStyle = color;
   c.save();
-  c.shadowColor = color; c.shadowBlur = 8;
+  c.shadowColor = color; c.shadowBlur = (_quality === 'simple' || document.body.classList.contains('screenshot-mode')) ? 0 : 8;
   c.lineWidth = lw; c.globalAlpha = 1.0; c.lineCap = 'round';
   c.beginPath(); c.moveTo(fromX, fromY);
   c.quadraticCurveTo(midX, midY, baseX, baseY);
@@ -3866,7 +3868,7 @@ document.getElementById('energyGraphToggle').addEventListener('click', function(
     document.getElementById('scrubPercents').classList.add('visible');
     // Canvas was hidden (offsetWidth=0) so resize it now that it's visible
     egCanvas.width = egCanvas.offsetWidth || Math.max(1, window.innerWidth - 112 - 270);
-    drawEnergyGraph();
+    _egVersion++; drawEnergyGraph();
   } else if (egZoomStart === 0 && egZoomEnd >= 1) {
     box.classList.remove('visible');
     this.classList.remove('active');
@@ -3874,18 +3876,22 @@ document.getElementById('energyGraphToggle').addEventListener('click', function(
     document.getElementById('scrubPercents').classList.remove('visible');
   } else {
     egZoomStart = 0; egZoomEnd = 1;
-    drawEnergyGraph();
+    _egVersion++; drawEnergyGraph();
   }
   updateGraphBtn();
 });
 
 let idleParticleRAF = null;
-function idleParticleLoop() {
-  if (animParent && showParticles) updateParticleJitter(animParent.particles.length, 1, true);
-  if (currentTab === 'trails') stepElectrons();
-  else if (currentTab === 'orbit3d') { if (!orb3dPaused) stepOrbit3D(); }
-  else stepElectronsShells();
-  if (animParent || currentTab === 'orbit3d') draw();
+let _idleParticleLast = 0;
+function idleParticleLoop(now) {
+  if (now - _idleParticleLast >= 67) {   // ~15 fps
+    _idleParticleLast = now;
+    if (animParent && showParticles) updateParticleJitter(animParent.particles.length, 1, true);
+    if (currentTab === 'trails') stepElectrons();
+    else if (currentTab === 'orbit3d') { if (!orb3dPaused) stepOrbit3D(); }
+    else stepElectronsShells();
+    if (animParent || currentTab === 'orbit3d') draw();
+  }
   idleParticleRAF = requestAnimationFrame(idleParticleLoop);
 }
 
@@ -4214,6 +4220,8 @@ function computeEnergy(frac) { return { ke: 0.5, eie: 0.5 }; }
 
 
 function drawEnergyGraph() {
+  if (_egDrawnVersion === _egVersion) return;
+  _egDrawnVersion = _egVersion;
   const W = egCanvas.width, H = egCanvas.height;
   const PAD = 8;
   const gH  = H - PAD * 2;
@@ -4496,7 +4504,7 @@ egCanvas.addEventListener('mousedown', e => {
 egCanvas.addEventListener('mousemove', e => {
   if (egDragStartPx === null) return;
   egDragCurPx = e.offsetX;
-  drawEnergyGraph();
+  _egVersion++; drawEnergyGraph();
 });
 egCanvas.addEventListener('mouseup', e => {
   if (egDragStartPx === null) return;
@@ -4504,19 +4512,19 @@ egCanvas.addEventListener('mouseup', e => {
   const x1 = Math.max(egDragStartPx, e.offsetX);
   egDragStartPx = null; egDragCurPx = null;
   const W = egCanvas.width;
-  if (x1 - x0 < 4) { drawEnergyGraph(); return; }  // too small — ignore
+  if (x1 - x0 < 4) { _egVersion++; drawEnergyGraph(); return; }  // too small — ignore
   const prevStart = egZoomStart, zLen = egZoomEnd - egZoomStart;
   egZoomStart = prevStart + (x0 / W) * zLen;
   egZoomEnd   = prevStart + (x1 / W) * zLen;
-  drawEnergyGraph();
+  _egVersion++; drawEnergyGraph();
   updateGraphBtn();
 });
 egCanvas.addEventListener('mouseleave', e => {
-  if (egDragStartPx !== null) { egDragStartPx = null; egDragCurPx = null; drawEnergyGraph(); }
+  if (egDragStartPx !== null) { egDragStartPx = null; egDragCurPx = null; _egVersion++; drawEnergyGraph(); }
 });
 egCanvas.addEventListener('dblclick', () => {
   egZoomStart = 0; egZoomEnd = 1;
-  drawEnergyGraph();
+  _egVersion++; drawEnergyGraph();
   updateGraphBtn();
 });
 
@@ -4569,7 +4577,7 @@ function applyTheme(key) {
   document.getElementById('themeLight').classList.remove('active');
   document.querySelectorAll('.theme-btn:not(#themeLight):not([data-theme="L"])').forEach(b => b.classList.remove('active'));
   document.getElementById('theme'+key).classList.add('active');
-  draw();
+  _egVersion++; draw();
 }
 document.getElementById('themeA').addEventListener('click', () => applyTheme('A'));
 document.getElementById('themeB').addEventListener('click', () => applyTheme('B'));
@@ -4582,7 +4590,7 @@ document.getElementById('bgColorPicker').addEventListener('input', function() {
 document.getElementById('themeLight').addEventListener('click', () => {
   const on = document.body.classList.toggle('screenshot-mode');
   document.getElementById('themeLight').classList.toggle('active', on);
-  draw();
+  _egVersion++; draw();
 });
 applyTheme('A');
 
@@ -4679,7 +4687,7 @@ document.addEventListener('visibilitychange', () => {
 
 </script>
 
-<div id="bugModal" style="display:none;position:fixed;inset:0;z-index:10000;background:rgba(2,1,12,0.85);backdrop-filter:blur(6px);align-items:center;justify-content:center;">
+<div id="bugModal" style="display:none;position:fixed;inset:0;z-index:10000;background:rgba(2,1,12,0.85);align-items:center;justify-content:center;">
   <div style="position:relative;width:660px;max-width:94vw;height:88vh;background:#05040f;border:1px solid rgba(26,110,255,0.35);border-radius:14px;box-shadow:0 0 0 1px rgba(26,110,255,0.1),0 8px 60px rgba(0,0,0,0.8),0 0 40px rgba(26,110,255,0.12);display:flex;flex-direction:column;overflow:hidden;">
     <button onclick="closeBugModal()" style="position:absolute;top:10px;right:12px;z-index:1;background:rgba(26,110,255,0.12);border:1px solid rgba(26,110,255,0.3);color:#8090c0;border-radius:6px;width:28px;height:28px;font-size:16px;cursor:pointer;line-height:1;padding:0;" onmouseenter="this.style.background='rgba(26,110,255,0.28)'" onmouseleave="this.style.background='rgba(26,110,255,0.12)'">✕</button>
     <iframe id="bugModalFrame" src="about:blank" style="flex:1;border:none;border-radius:14px;background:#05040f;"></iframe>
