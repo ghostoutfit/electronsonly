@@ -3671,7 +3671,7 @@ function draw() {
 
   if (!showParticles) drawCloudOutline(animParent.cx, animParent.cy, animParent.sphereR);
   if (showParticles) {
-    if (_imgParent) {
+    if (_imgParent && _quality === 'simple') {
       const jx = (Math.random() - 0.5) * 0.7, jy = (Math.random() - 0.5) * 0.7;
       ctx.drawImage(_imgParent, animParent.cx - _imgParent.width / 2 + jx, animParent.cy - _imgParent.height / 2 + jy);
     } else {
@@ -3864,7 +3864,7 @@ function idleParticleLoop(now) {
   const _isOrbit = currentTab === 'orbit3d';
   if (_isOrbit || _is15fps) {   // orbit3d: 60fps; shells: ~15fps
     if (!_isOrbit) _idleParticleLast = now;
-    if (animParent && showParticles && (!_isOrbit || _quality !== 'simple')) updateParticleJitter(animParent.particles.length, 1, true);
+    if (animParent && showParticles && !(_quality === 'simple' && (_isOrbit || _isShells))) updateParticleJitter(animParent.particles.length, 1, true);
     if (_isOrbit) { if (!orb3dPaused) stepOrbit3D(); }
     else stepElectronsShells();
     if (animParent || _isOrbit) draw();
