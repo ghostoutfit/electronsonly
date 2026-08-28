@@ -1916,9 +1916,11 @@ function drawOrbit3D(ctx) {
       _trailOCAZ = orb3dAZ; _trailOCEL = orb3dEL;
       _trailOCZoom = viewZoom; _trailOCRadScale = orb3dRadScale;
     } else {
-      // Static view: fade old trail and append only the newest 1-segment per electron
-      _trailOCCtx.fillStyle = LIGHT ? 'rgba(240,240,248,0.04)' : 'rgba(5,4,15,0.04)';
-      _trailOCCtx.fillRect(0, 0, W, H);
+      // Static view: fade old trail (skip fade when paused or mouse held for rotation)
+      if (!orb3dPaused && !orb3dDragState) {
+        _trailOCCtx.fillStyle = LIGHT ? 'rgba(240,240,248,0.015)' : 'rgba(5,4,15,0.015)';
+        _trailOCCtx.fillRect(0, 0, W, H);
+      }
       _trailOCCtx.globalAlpha = 0.9;
       for (const s of occupied) {
         const r3d = getShellRadius(s) * orb3dRadScale * viewZoom;
