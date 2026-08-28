@@ -1909,7 +1909,7 @@ function drawOrbit3D(ctx) {
         }
         ctx.globalAlpha = 1;
         // Arrow at trail head pointing in direction of travel
-        if (!_simple && orb3dDotR > 0 && n > 0 && !_shellOffScreen) {
+        if (_quality !== 'simple' && orb3dDotR > 0 && n > 0 && !_shellOffScreen) {
           const tip = trail[n - 1];
           const [tx, ty] = proj3D(tip[0], tip[1], tip[2], r3d);
           const prev = trail[Math.max(0, n - 3)];
