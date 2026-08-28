@@ -1142,10 +1142,6 @@ window.addEventListener('resize', () => {
     animParent.cx = newCx; animParent.cy = newCy;
     for (const p of animParent.particles) { p.x += dx; p.y += dy; }
     buildNucleusImages();
-    if (animParentB) {
-      animParentB.cx += dx; animParentB.cy += dy;
-      for (const p of animParentB.particles) { p.x += dx; p.y += dy; }
-    }
   }
   if (autoScaleZoom) applyAutoScale();
   draw();
