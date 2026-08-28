@@ -1602,7 +1602,7 @@ let egDragStartPx = null, egDragCurPx = null;
 let animParent = null;
 let _imgParent = null;
 let _bgCanvas = null, _bgCtx = null;
-let _trailOC = null, _trailOCCtx = null, _trailOCAZ = null, _trailOCEL = null;
+let _trailOC = null, _trailOCCtx = null, _trailOCAZ = null, _trailOCEL = null, _trailOCZoom = null, _trailOCRadScale = null;
 let _countersDirty = true;
 let _showElectric = false;
 
@@ -1883,12 +1883,15 @@ function drawOrbit3D(ctx) {
       _trailOCCtx.fillStyle = LIGHT ? '#f0f0f8' : '#05040f';
       _trailOCCtx.fillRect(0, 0, W, H);
       _trailOCAZ = orb3dAZ; _trailOCEL = orb3dEL;
+      _trailOCZoom = viewZoom; _trailOCRadScale = orb3dRadScale;
     }
-    // Clear on view rotation so stale screen-space trails don't persist at wrong positions
-    if (Math.abs(orb3dAZ - _trailOCAZ) > 0.001 || Math.abs(orb3dEL - _trailOCEL) > 0.001) {
+    // Clear on rotation, zoom, or radscale change — all shift electron screen positions
+    if (Math.abs(orb3dAZ - _trailOCAZ) > 0.001 || Math.abs(orb3dEL - _trailOCEL) > 0.001
+        || viewZoom !== _trailOCZoom || orb3dRadScale !== _trailOCRadScale) {
       _trailOCCtx.fillStyle = LIGHT ? '#f0f0f8' : '#05040f';
       _trailOCCtx.fillRect(0, 0, W, H);
       _trailOCAZ = orb3dAZ; _trailOCEL = orb3dEL;
+      _trailOCZoom = viewZoom; _trailOCRadScale = orb3dRadScale;
     }
     // Fade existing trails toward background color
     _trailOCCtx.fillStyle = LIGHT ? 'rgba(240,240,248,0.04)' : 'rgba(5,4,15,0.04)';
@@ -2474,6 +2477,7 @@ function setNucleusFromZ(Z) {
   if (Z === 0) {
     animParent = null;
     _imgParent = null;
+    _trailOC = null;
   } else {
     animParent = generateNucleus(Z, N, W / 2, H / 2, currentSeed);
     buildNucleusImages();
@@ -3432,6 +3436,7 @@ function drawForceViz() {
 function initNuclei() {
   animParent = null;
   _imgParent = null;
+  _trailOC = null;
   customZ = 0;
   document.getElementById('protonSlider').value = 0;
   document.getElementById('protonSliderVal').textContent = 0;
