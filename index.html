@@ -1879,8 +1879,7 @@ function drawOrbit3D(ctx) {
     if (!_trailOC || _trailOC.width !== W || _trailOC.height !== H) {
       _trailOC = new OffscreenCanvas(W, H);
       _trailOCCtx = _trailOC.getContext('2d');
-      _trailOCCtx.fillStyle = LIGHT ? '#f0f0f8' : '#05040f';
-      _trailOCCtx.fillRect(0, 0, W, H);
+      // Start fully transparent — background shows through where no trail has been painted
       _trailOCAZ = orb3dAZ - 999; // force re-bake on first frame
     }
     const _viewChanged = Math.abs(orb3dAZ - _trailOCAZ) > 0.001 || Math.abs(orb3dEL - _trailOCEL) > 0.001
@@ -1889,9 +1888,7 @@ function drawOrbit3D(ctx) {
     _trailOCCtx.lineCap = 'round';
     if (_viewChanged) {
       // Re-project the full stored trail history as straight lines into a fresh buffer.
-      // Same proj3D cost as old code but lineTo instead of Bezier — correct at any angle.
-      _trailOCCtx.fillStyle = LIGHT ? '#f0f0f8' : '#05040f';
-      _trailOCCtx.fillRect(0, 0, W, H);
+      _trailOCCtx.clearRect(0, 0, W, H);
       _trailOCCtx.globalAlpha = LIGHT ? 0.92 : 0.75;
       for (const s of occupied) {
         const r3d = getShellRadius(s) * orb3dRadScale * viewZoom;
@@ -1916,11 +1913,13 @@ function drawOrbit3D(ctx) {
       _trailOCAZ = orb3dAZ; _trailOCEL = orb3dEL;
       _trailOCZoom = viewZoom; _trailOCRadScale = orb3dRadScale;
     } else {
-      // Static view: fade old trail (skip fade when paused or mouse held for rotation)
-      if (!orb3dPaused && !orb3dDragState) {
-        _trailOCCtx.fillStyle = LIGHT ? 'rgba(240,240,248,0.015)' : 'rgba(5,4,15,0.015)';
-        _trailOCCtx.fillRect(0, 0, W, H);
-      }
+      // Static view: fade by multiplying pixel alphas (destination-in), then add newest segment.
+      // Fading alpha converges to 0 (transparent) so background shows through — no color-
+      // quantization ghost. Color-fade toward background was stuck for certain shell colors.
+      _trailOCCtx.globalCompositeOperation = 'destination-in';
+      _trailOCCtx.fillStyle = 'rgba(0,0,0,0.985)';
+      _trailOCCtx.fillRect(0, 0, W, H);
+      _trailOCCtx.globalCompositeOperation = 'source-over';
       _trailOCCtx.globalAlpha = 0.9;
       for (const s of occupied) {
         const r3d = getShellRadius(s) * orb3dRadScale * viewZoom;
