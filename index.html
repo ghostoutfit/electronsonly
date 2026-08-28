@@ -1872,85 +1872,46 @@ function drawOrbit3D(ctx) {
   const _visHH = cy - _cachedTbH;  // visible vertical half-height from orbit center
   ctx.lineWidth = 1.5;
 
+  _trailOC = null; // free OC memory when not needed
   if (_quality === 'simple') {
-    // Accumulation buffer: cheap 1-segment-per-electron per frame when static.
-    // On view change, re-bake the full stored trail immediately so rotation works correctly.
-    const W = canvas.width, H = canvas.height;
-    if (!_trailOC || _trailOC.width !== W || _trailOC.height !== H) {
-      _trailOC = new OffscreenCanvas(W, H);
-      _trailOCCtx = _trailOC.getContext('2d');
-      // Start fully transparent — background shows through where no trail has been painted
-      _trailOCAZ = orb3dAZ - 999; // force re-bake on first frame
-    }
-    const _viewChanged = Math.abs(orb3dAZ - _trailOCAZ) > 0.001 || Math.abs(orb3dEL - _trailOCEL) > 0.001
-                      || viewZoom !== _trailOCZoom || orb3dRadScale !== _trailOCRadScale;
-    _trailOCCtx.lineWidth = 1.5;
-    _trailOCCtx.lineCap = 'round';
-    if (_viewChanged) {
-      // Re-project the full stored trail history as straight lines into a fresh buffer.
-      _trailOCCtx.clearRect(0, 0, W, H);
-      _trailOCCtx.globalAlpha = LIGHT ? 0.92 : 0.75;
-      for (const s of occupied) {
-        const r3d = getShellRadius(s) * orb3dRadScale * viewZoom;
-        _trailOCCtx.strokeStyle = (LIGHT ? SHELL_COLORS_LIGHT : SHELL_COLORS)[s % SHELL_COLORS.length];
-        for (const grp of orb3dShellGroups[s]) {
-          for (let ei = 0; ei < grp.count; ei++) {
-            const trail = grp.trails[ei];
-            const n = trail.length;
-            if (n < 2) continue;
-            _trailOCCtx.beginPath();
-            const [x0, y0] = proj3D(trail[0][0], trail[0][1], trail[0][2], r3d);
-            _trailOCCtx.moveTo(x0, y0);
-            for (let i = 1; i < n; i++) {
-              const [xi, yi] = proj3D(trail[i][0], trail[i][1], trail[i][2], r3d);
-              _trailOCCtx.lineTo(xi, yi);
-            }
-            _trailOCCtx.stroke();
-          }
-        }
-      }
-      _trailOCCtx.globalAlpha = 1;
-      _trailOCAZ = orb3dAZ; _trailOCEL = orb3dEL;
-      _trailOCZoom = viewZoom; _trailOCRadScale = orb3dRadScale;
-    } else {
-      // Static view: fade by multiplying pixel alphas (destination-in), then add newest segment.
-      // Fading alpha converges to 0 (transparent) so background shows through — no color-
-      // quantization ghost. Color-fade toward background was stuck for certain shell colors.
-      _trailOCCtx.globalCompositeOperation = 'destination-in';
-      _trailOCCtx.fillStyle = 'rgba(0,0,0,0.985)';
-      _trailOCCtx.fillRect(0, 0, W, H);
-      _trailOCCtx.globalCompositeOperation = 'source-over';
-      _trailOCCtx.globalAlpha = 0.9;
-      for (const s of occupied) {
-        const r3d = getShellRadius(s) * orb3dRadScale * viewZoom;
-        _trailOCCtx.strokeStyle = (LIGHT ? SHELL_COLORS_LIGHT : SHELL_COLORS)[s % SHELL_COLORS.length];
-        for (const grp of orb3dShellGroups[s]) {
-          for (let ei = 0; ei < grp.count; ei++) {
-            const trail = grp.trails[ei];
-            const n = trail.length;
-            if (n < 2) continue;
-            const [tx, ty] = proj3D(trail[n-1][0], trail[n-1][1], trail[n-1][2], r3d);
-            const [px, py] = proj3D(trail[n-2][0], trail[n-2][1], trail[n-2][2], r3d);
-            _trailOCCtx.beginPath();
-            _trailOCCtx.moveTo(px, py);
-            _trailOCCtx.lineTo(tx, ty);
-            _trailOCCtx.stroke();
-          }
-        }
-      }
-      _trailOCCtx.globalAlpha = 1;
-    }
-    ctx.drawImage(_trailOC, 0, 0);
-
-    // Arrow heads on main canvas for Simple mode
+    // Simple mode: re-project stored trail points every frame using straight lineTo —
+    // no Bezier tessellation, no accumulation buffer, no ghost possible.
+    // 2 alpha buckets give dim-tail / bright-head fade with only 2 strokes per electron.
+    const _tma = LIGHT ? 0.92 : 0.75;
+    ctx.lineWidth = 1.5;
+    ctx.lineCap = 'round';
     for (const s of occupied) {
       const r3d = getShellRadius(s) * orb3dRadScale * viewZoom;
       const _shellOffScreen = r3d > _visHH * 1.2;
       const col = (LIGHT ? SHELL_COLORS_LIGHT : SHELL_COLORS)[s % SHELL_COLORS.length];
+      ctx.strokeStyle = col;
       for (const grp of orb3dShellGroups[s]) {
         for (let ei = 0; ei < grp.count; ei++) {
           const trail = grp.trails[ei];
           const n = trail.length;
+          if (n >= 2) {
+            const mid = Math.floor(n / 2);
+            // Tail half — dim
+            ctx.globalAlpha = _tma * 0.3;
+            ctx.beginPath();
+            const [x0, y0] = proj3D(trail[0][0], trail[0][1], trail[0][2], r3d);
+            ctx.moveTo(x0, y0);
+            for (let i = 2; i <= mid; i += 2) {
+              const [xi, yi] = proj3D(trail[i][0], trail[i][1], trail[i][2], r3d);
+              ctx.lineTo(xi, yi);
+            }
+            ctx.stroke();
+            // Head half — bright
+            ctx.globalAlpha = _tma;
+            ctx.beginPath();
+            const [xm, ym] = proj3D(trail[mid][0], trail[mid][1], trail[mid][2], r3d);
+            ctx.moveTo(xm, ym);
+            for (let i = mid + 2; i < n; i += 2) {
+              const [xi, yi] = proj3D(trail[i][0], trail[i][1], trail[i][2], r3d);
+              ctx.lineTo(xi, yi);
+            }
+            ctx.stroke();
+          }
           ctx.globalAlpha = 1;
           if (orb3dDotR > 0 && n > 0 && !_shellOffScreen) {
             const tip = trail[n - 1];
