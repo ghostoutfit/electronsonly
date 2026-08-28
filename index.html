@@ -1884,22 +1884,26 @@ function drawOrbit3D(ctx) {
         const trail = grp.trails[ei];
         const n = trail.length;
         if (n >= 2) {
-          const proj = trail.map(p => proj3D(p[0], p[1], p[2], r3d));
+          const _simple = _quality === 'simple';
+          const _step = _simple ? 2 : 1;
+          const pts = [];
+          for (let i = 0; i < n; i += _step) pts.push(proj3D(trail[i][0], trail[i][1], trail[i][2], r3d));
+          const np = pts.length;
           ctx.strokeStyle = col;
-          const BUCKETS = 32;
+          const BUCKETS = _simple ? 4 : 32;
           for (let b = 0; b < BUCKETS; b++) {
-            const i0 = Math.round(b / BUCKETS * (n - 1));
-            const i1 = Math.round((b + 1) / BUCKETS * (n - 1));
+            const i0 = Math.round(b / BUCKETS * (np - 1));
+            const i1 = Math.round((b + 1) / BUCKETS * (np - 1));
             if (i1 <= i0) continue;
             ctx.globalAlpha = ((b + 1) / BUCKETS) * _trailMaxAlpha;
             ctx.beginPath();
-            ctx.moveTo(proj[i0][0], proj[i0][1]);
-            const mid0x = (proj[i0][0] + proj[Math.min(i0+1,n-1)][0]) / 2;
-            const mid0y = (proj[i0][1] + proj[Math.min(i0+1,n-1)][1]) / 2;
+            ctx.moveTo(pts[i0][0], pts[i0][1]);
+            const mid0x = (pts[i0][0] + pts[Math.min(i0+1,np-1)][0]) / 2;
+            const mid0y = (pts[i0][1] + pts[Math.min(i0+1,np-1)][1]) / 2;
             ctx.lineTo(mid0x, mid0y);
             for (let i = i0 + 1; i < i1; i++)
-              ctx.quadraticCurveTo(proj[i][0], proj[i][1], (proj[i][0] + proj[i+1][0]) / 2, (proj[i][1] + proj[i+1][1]) / 2);
-            ctx.lineTo(proj[i1][0], proj[i1][1]);
+              ctx.quadraticCurveTo(pts[i][0], pts[i][1], (pts[i][0] + pts[i+1][0]) / 2, (pts[i][1] + pts[i+1][1]) / 2);
+            ctx.lineTo(pts[i1][0], pts[i1][1]);
             ctx.stroke();
           }
         }
