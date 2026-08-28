@@ -1890,7 +1890,7 @@ function drawOrbit3D(ctx) {
           for (let i = 0; i < n; i += _step) pts.push(proj3D(trail[i][0], trail[i][1], trail[i][2], r3d));
           const np = pts.length;
           ctx.strokeStyle = col;
-          const BUCKETS = _simple ? 4 : 32;
+          const BUCKETS = _simple ? 2 : 32;
           for (let b = 0; b < BUCKETS; b++) {
             const i0 = Math.round(b / BUCKETS * (np - 1));
             const i1 = Math.round((b + 1) / BUCKETS * (np - 1));
@@ -1909,7 +1909,7 @@ function drawOrbit3D(ctx) {
         }
         ctx.globalAlpha = 1;
         // Arrow at trail head pointing in direction of travel
-        if (orb3dDotR > 0 && n > 0 && !_shellOffScreen) {
+        if (!_simple && orb3dDotR > 0 && n > 0 && !_shellOffScreen) {
           const tip = trail[n - 1];
           const [tx, ty] = proj3D(tip[0], tip[1], tip[2], r3d);
           const prev = trail[Math.max(0, n - 3)];
@@ -3788,7 +3788,7 @@ function idleParticleLoop(now) {
   const _isOrbit = currentTab === 'orbit3d';
   if (_isOrbit || _is15fps) {   // orbit3d: 60fps; shells: ~15fps
     if (!_isOrbit) _idleParticleLast = now;
-    if (animParent && showParticles) updateParticleJitter(animParent.particles.length, 1, true);
+    if (!_isOrbit && animParent && showParticles) updateParticleJitter(animParent.particles.length, 1, true);
     if (_isOrbit) { if (!orb3dPaused) stepOrbit3D(); }
     else stepElectronsShells();
     if (animParent || _isOrbit) draw();
