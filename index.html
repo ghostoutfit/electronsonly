@@ -870,7 +870,7 @@
   <div class="toolbar-row">
     <div id="tabBar"></div>
     <div style="display:flex;align-items:center;gap:6px;margin-left:auto;">
-      <span style="font-size:10px;font-weight:600;letter-spacing:0.06em;color:rgba(255,255,255,0.45);white-space:nowrap;">Field Test Version 1.11</span>
+      <span style="font-size:10px;font-weight:600;letter-spacing:0.06em;color:rgba(255,255,255,0.45);white-space:nowrap;">Field Test Version 1.10</span>
       <select id="qualitySelect">
         <option value="hi-res">Hi-res</option>
         <option value="detailed">Detailed</option>
@@ -1877,8 +1877,6 @@ function drawOrbit3D(ctx) {
     // One smooth curved stroke per shell (all electrons batched) + one arrow fill per shell.
     // The original problem was 32 separate strokes per electron; now it's 1 per shell.
     const _tma = LIGHT ? 0.92 : 0.75;
-    // At high zoom each trail segment covers more pixels — scale step up to keep GPU work constant
-    const _step = Math.max(2, Math.round(viewZoom * 7.5));
     ctx.lineWidth = 1.5;
     ctx.lineCap = 'round';
     for (const s of occupied) {
@@ -1894,7 +1892,7 @@ function drawOrbit3D(ctx) {
           const n = trail.length;
           if (n < 2) continue;
           const pts = [];
-          for (let i = 0; i < n; i += _step) pts.push(proj3D(trail[i][0], trail[i][1], trail[i][2], r3d));
+          for (let i = 0; i < n; i += 2) pts.push(proj3D(trail[i][0], trail[i][1], trail[i][2], r3d));
           const np = pts.length;
           ctx.moveTo(pts[0][0], pts[0][1]);
           for (let i = 1; i < np - 1; i++) {
