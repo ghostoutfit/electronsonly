@@ -1801,7 +1801,7 @@ function drawOrbit3D(ctx) {
         }
       };
 
-      if (_quality === 'hi-res') {
+      if (!LIGHT && _quality === 'hi-res') {
         // Wide outer haze — big blur, low alpha
         gc.shadowColor = `rgba(${_gr},${_gg},${_gb},1)`;
         gc.shadowBlur  = 32;
@@ -1849,8 +1849,8 @@ function drawOrbit3D(ctx) {
       _gridOCKey = _cacheKey;
     }
 
-    // Hi-res: tiny sub-pixel jitter makes the grid feel alive; detailed/simple: static blit
-    if (_quality === 'hi-res') {
+    // Hi-res dark: tiny sub-pixel jitter makes the grid feel alive; light/simple: static blit
+    if (!LIGHT && _quality === 'hi-res') {
       const jx = (Math.random() - 0.5) * 0.7;
       const jy = (Math.random() - 0.5) * 0.7;
       ctx.drawImage(_gridOC, jx, jy);
