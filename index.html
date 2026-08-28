@@ -870,7 +870,7 @@
   <div class="toolbar-row">
     <div id="tabBar"></div>
     <div style="display:flex;align-items:center;gap:6px;margin-left:auto;">
-      <span style="font-size:10px;font-weight:600;letter-spacing:0.06em;color:rgba(255,255,255,0.45);white-space:nowrap;">Field Test Version 1.6</span>
+      <span style="font-size:10px;font-weight:600;letter-spacing:0.06em;color:rgba(255,255,255,0.45);white-space:nowrap;">Field Test Version 1.7</span>
       <select id="qualitySelect">
         <option value="hi-res">Hi-res</option>
         <option value="detailed">Detailed</option>
@@ -1874,16 +1874,13 @@ function drawOrbit3D(ctx) {
 
   _trailOC = null;
   if (_quality === 'simple') {
-    // Batch all electrons per shell into one stroke + one fill call.
-    // Xenon: 5 stroke + 5 fill = 10 draw calls/frame vs old 108 stroke + 54 fill = 162.
+    // One stroke per shell — all electrons batched into one path. No arrow polygon.
     const _tma = LIGHT ? 0.92 : 0.75;
-    ctx.lineWidth = 1.5;
+    ctx.lineWidth = 2.5;
     ctx.lineCap = 'round';
     for (const s of occupied) {
       const r3d = getShellRadius(s) * orb3dRadScale * viewZoom;
-      const _shellOffScreen = r3d > _visHH * 1.2;
       const col = (LIGHT ? SHELL_COLORS_LIGHT : SHELL_COLORS)[s % SHELL_COLORS.length];
-      // All electrons in this shell — one stroke call
       ctx.strokeStyle = col;
       ctx.globalAlpha = _tma;
       ctx.beginPath();
@@ -1901,32 +1898,6 @@ function drawOrbit3D(ctx) {
         }
       }
       ctx.stroke();
-      // All arrow heads in this shell — one fill call
-      if (orb3dDotR > 0 && !_shellOffScreen) {
-        ctx.globalAlpha = 1;
-        ctx.fillStyle = col;
-        ctx.beginPath();
-        for (const grp of orb3dShellGroups[s]) {
-          for (let ei = 0; ei < grp.count; ei++) {
-            const trail = grp.trails[ei];
-            const n = trail.length;
-            if (n < 1) continue;
-            const [tx, ty] = proj3D(trail[n-1][0], trail[n-1][1], trail[n-1][2], r3d);
-            const [px2, py2] = proj3D(trail[Math.max(0,n-3)][0], trail[Math.max(0,n-3)][1], trail[Math.max(0,n-3)][2], r3d);
-            let dx = tx - px2, dy = ty - py2;
-            const dl = Math.sqrt(dx*dx + dy*dy);
-            if (dl > 0.5) { dx /= dl; dy /= dl; } else { dx = 1; dy = 0; }
-            const _as = s === occupied[0] ? 1.3 : 1.0;
-            const AW = Math.min(orb3dDotR * r3d / 200 * 0.65 * _as, 7.5), AL = AW / 0.65, perpx = -dy, perpy = dx;
-            ctx.moveTo(tx + dx*AL,             ty + dy*AL);
-            ctx.lineTo(tx - dx*AL + perpx*AW,  ty - dy*AL + perpy*AW);
-            ctx.lineTo(tx - dx*AL * 0.25,      ty - dy*AL * 0.25);
-            ctx.lineTo(tx - dx*AL - perpx*AW,  ty - dy*AL - perpy*AW);
-            ctx.closePath();
-          }
-        }
-        ctx.fill();
-      }
     }
     ctx.globalAlpha = 1;
   } else {
