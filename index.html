@@ -870,7 +870,7 @@
   <div class="toolbar-row">
     <div id="tabBar"></div>
     <div style="display:flex;align-items:center;gap:6px;margin-left:auto;">
-      <span style="font-size:10px;font-weight:600;letter-spacing:0.06em;color:rgba(255,255,255,0.45);white-space:nowrap;">Field Test Version 1.12</span>
+      <span style="font-size:10px;font-weight:600;letter-spacing:0.06em;color:rgba(255,255,255,0.45);white-space:nowrap;">Field Test Version 1.13</span>
       <select id="qualitySelect">
         <option value="hi-res">Hi-res</option>
         <option value="detailed">Detailed</option>
@@ -1877,11 +1877,8 @@ function drawOrbit3D(ctx) {
     // One smooth curved stroke per shell (all electrons batched) + one arrow fill per shell.
     // The original problem was 32 separate strokes per electron; now it's 1 per shell.
     const _tma = LIGHT ? 0.92 : 0.75;
-    // At high zoom each trail segment covers more pixels — scale step up to keep GPU work constant
-    const _step = Math.max(2, Math.round(viewZoom * 7.5));
-    // Off-screen culling: margin beyond canvas edge at which we stop submitting geometry
-    const _cullM = 40;
-    const _vis = (x, y) => x > -_cullM && x < W + _cullM && y > -_cullM && y < H + _cullM;
+    // 100 straight lineTo segments; reduce at high zoom to keep screen-pixel coverage roughly constant
+    const _TARGET = Math.max(20, Math.round(100 / Math.max(1, viewZoom / 0.265)));
     ctx.lineWidth = 1.5;
     ctx.lineCap = 'round';
     for (const s of occupied) {
@@ -1896,25 +1893,14 @@ function drawOrbit3D(ctx) {
           const trail = grp.trails[ei];
           const n = trail.length;
           if (n < 2) continue;
+          const _np = Math.min(_TARGET, n);
           const pts = [];
-          for (let i = 0; i < n; i += _step) pts.push(proj3D(trail[i][0], trail[i][1], trail[i][2], r3d));
-          const np = pts.length;
-          // Walk segments; issue moveTo only when entering a visible run, skip entirely when all three
-          // of (pen position, control point, endpoint) are outside the canvas + margin.
-          let _penX = pts[0][0], _penY = pts[0][1], _penDown = false;
-          for (let i = 1; i < np - 1; i++) {
-            const [cpx, cpy] = pts[i];
-            const ex = (cpx + pts[i+1][0]) / 2, ey = (cpy + pts[i+1][1]) / 2;
-            if (_vis(_penX, _penY) || _vis(cpx, cpy) || _vis(ex, ey)) {
-              if (!_penDown) { ctx.moveTo(_penX, _penY); _penDown = true; }
-              ctx.quadraticCurveTo(cpx, cpy, ex, ey);
-            } else { _penDown = false; }
-            _penX = ex; _penY = ey;
+          for (let k = 0; k < _np; k++) {
+            const idx = k === _np - 1 ? n - 1 : Math.floor(k * n / _np);
+            pts.push(proj3D(trail[idx][0], trail[idx][1], trail[idx][2], r3d));
           }
-          if (np > 1 && (_vis(_penX, _penY) || _vis(pts[np-1][0], pts[np-1][1]))) {
-            if (!_penDown) ctx.moveTo(_penX, _penY);
-            ctx.lineTo(pts[np-1][0], pts[np-1][1]);
-          }
+          ctx.moveTo(pts[0][0], pts[0][1]);
+          for (let i = 1; i < _np; i++) ctx.lineTo(pts[i][0], pts[i][1]);
         }
       }
       ctx.stroke();
