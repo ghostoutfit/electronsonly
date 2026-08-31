@@ -1884,28 +1884,44 @@ function drawOrbit3D(ctx) {
       const _shellOffScreen = r3d > W * 0.6;
       if (_shellOffScreen) continue;
       const col = (LIGHT ? SHELL_COLORS_LIGHT : SHELL_COLORS)[s % SHELL_COLORS.length];
-      ctx.strokeStyle = col;
-      ctx.globalAlpha = _tma;
-      ctx.beginPath();
+
+      // Pre-project all electrons once, reuse across both buckets
+      const _ePts = [];
       for (const grp of orb3dShellGroups[s]) {
         for (let ei = 0; ei < grp.count; ei++) {
           const trail = grp.trails[ei];
           const n = trail.length;
-          if (n < 2) continue;
+          if (n < 2) { _ePts.push(null); continue; }
           const pts = [];
           for (let i = 0; i < n; i += 2) pts.push(proj3D(trail[i][0], trail[i][1], trail[i][2], r3d));
-          const np = pts.length;
-          ctx.moveTo(pts[0][0], pts[0][1]);
-          for (let i = 1; i < np - 1; i++) {
-            const mx = (pts[i][0] + pts[i+1][0]) / 2;
-            const my = (pts[i][1] + pts[i+1][1]) / 2;
-            ctx.quadraticCurveTo(pts[i][0], pts[i][1], mx, my);
-          }
-          ctx.lineTo(pts[np-1][0], pts[np-1][1]);
+          _ePts.push(pts);
         }
       }
-      ctx.stroke();
-      if (orb3dDotR > 0 && !_shellOffScreen) {
+
+      // 2 alpha buckets — dim (old half) then bright (new half)
+      ctx.strokeStyle = col;
+      for (let b = 0; b < 2; b++) {
+        ctx.globalAlpha = ((b + 1) / 2) * _tma;
+        ctx.beginPath();
+        for (const pts of _ePts) {
+          if (!pts) continue;
+          const np = pts.length;
+          const i0 = Math.round(b / 2 * (np - 1));
+          const i1 = Math.round((b + 1) / 2 * (np - 1));
+          if (i1 <= i0) continue;
+          ctx.moveTo(pts[i0][0], pts[i0][1]);
+          const mid0x = (pts[i0][0] + pts[Math.min(i0+1,np-1)][0]) / 2;
+          const mid0y = (pts[i0][1] + pts[Math.min(i0+1,np-1)][1]) / 2;
+          ctx.lineTo(mid0x, mid0y);
+          for (let i = i0 + 1; i < i1; i++)
+            ctx.quadraticCurveTo(pts[i][0], pts[i][1], (pts[i][0]+pts[i+1][0])/2, (pts[i][1]+pts[i+1][1])/2);
+          ctx.lineTo(pts[i1][0], pts[i1][1]);
+        }
+        ctx.stroke();
+      }
+
+      // Arrows — one batched fill per shell
+      if (orb3dDotR > 0) {
         ctx.globalAlpha = 1;
         ctx.fillStyle = col;
         ctx.beginPath();
@@ -1955,11 +1971,11 @@ function drawOrbit3D(ctx) {
     }
 
     // Hi-res: 32 alpha buckets for smooth fade; Detailed: 3 levels (dim / mid / bright)
-    const _nB = _quality === 'hi-res' ? 32 : 3;
+    const _nB = _quality === 'hi-res' ? 32 : 4;
     ctx.strokeStyle = col;
     for (let b = 0; b < _nB; b++) {
       const _a = ((b + 1) / _nB) * _trailMaxAlpha;
-      ctx.globalAlpha = (_nB === 3 && b === 0) ? _a * 0.5 : _a;
+      ctx.globalAlpha = (_nB === 4 && b === 0) ? _a * 0.5 : _a;
       ctx.beginPath();
       for (const pts of _ePts) {
         if (!pts) continue;
