@@ -870,7 +870,7 @@
   <div class="toolbar-row">
     <div id="tabBar"></div>
     <div style="display:flex;align-items:center;gap:6px;margin-left:auto;">
-      <span style="font-size:10px;font-weight:600;letter-spacing:0.06em;color:rgba(255,255,255,0.45);white-space:nowrap;">Field Test Version 1.12</span>
+      <span style="font-size:10px;font-weight:600;letter-spacing:0.06em;color:rgba(255,255,255,0.45);white-space:nowrap;">Field Test Version 1.13</span>
       <select id="qualitySelect">
         <option value="hi-res">Hi-res</option>
         <option value="detailed">Detailed</option>
@@ -1679,18 +1679,18 @@ function _o3Precess(ax, rot, angle) {
   ]);
 }
 
-function stepOrbit3D() {
+function stepOrbit3D(dt = 1) {
   const occupied = [...new Set(electrons.map(e => e.shell))];
   for (const s of occupied) {
     const sp      = orbShellSpeed[s]    ?? 8;
     const radAmp  = orbShellRadAmp[s]   ?? 0.2;
     const wandDeg = orbShellWander[s]   ?? 45;
     const maxLen  = orbShellTrailLen[s] ?? 140;
-    const phStep  = 0.025 * sp;
+    const phStep  = 0.025 * sp * dt;
     for (const grp of orb3dShellGroups[s]) {
-      grp.radPh += 0.018 * sp;
+      grp.radPh += 0.018 * sp * dt;
       const r = 1 + radAmp * Math.sin(grp.radPh);
-      const precSpeed = 0.003 * sp * (wandDeg / 45);
+      const precSpeed = 0.003 * sp * (wandDeg / 45) * dt;
       grp.ax = _o3Precess(grp.ax, grp.rot, precSpeed);
       grp.e1 = _o3Precess(grp.e1, grp.rot, precSpeed);
       const e1 = grp.e1;
@@ -3859,9 +3859,11 @@ function idleParticleLoop(now) {
   const _orb3dReady = _quality === 'hi-res' || now - _orb3dLast >= 33;
 
   if (_isOrbit && _orb3dReady) {
+    // dt: elapsed ms / 16.67 (60fps baseline). Cap at 2.5 to prevent jumps after tab restore.
+    const _dt = Math.min((_orb3dLast > 0 ? now - _orb3dLast : 16.67) / 16.67, 2.5);
     _orb3dLast = now;
     if (animParent && showParticles && !(_quality === 'simple')) updateParticleJitter(animParent.particles.length, 1, true);
-    if (!orb3dPaused) stepOrbit3D();
+    if (!orb3dPaused) stepOrbit3D(_dt);
     draw();
   } else if (!_isOrbit && _is15fps) {   // shells: ~15fps
     _idleParticleLast = now;
