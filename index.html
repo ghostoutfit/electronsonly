@@ -870,7 +870,7 @@
   <div class="toolbar-row">
     <div id="tabBar"></div>
     <div style="display:flex;align-items:center;gap:6px;margin-left:auto;">
-      <span style="font-size:10px;font-weight:600;letter-spacing:0.06em;color:rgba(255,255,255,0.45);white-space:nowrap;">Field Test Version 1.14</span>
+      <span style="font-size:10px;font-weight:600;letter-spacing:0.06em;color:rgba(255,255,255,0.45);white-space:nowrap;">Field Test Version 1.15</span>
       <select id="qualitySelect">
         <option value="hi-res">Hi-res</option>
         <option value="detailed">Detailed</option>
@@ -1882,6 +1882,7 @@ function drawOrbit3D(ctx) {
     for (const s of occupied) {
       const r3d = getShellRadius(s) * orb3dRadScale * viewZoom;
       const _shellOffScreen = r3d > _visHH * 1.2;
+      if (_shellOffScreen) continue;
       const col = (LIGHT ? SHELL_COLORS_LIGHT : SHELL_COLORS)[s % SHELL_COLORS.length];
       ctx.strokeStyle = col;
       ctx.globalAlpha = _tma;
@@ -1936,6 +1937,7 @@ function drawOrbit3D(ctx) {
   for (const s of occupied) {
     const r3d = getShellRadius(s) * orb3dRadScale * viewZoom;
     const _shellOffScreen = r3d > _visHH * 1.2;
+    if (_shellOffScreen) continue;
     const col = (LIGHT ? SHELL_COLORS_LIGHT : SHELL_COLORS)[s % SHELL_COLORS.length];
     const _trailMaxAlpha = LIGHT ? 0.92 : 0.75;
 
