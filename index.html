@@ -870,7 +870,7 @@
   <div class="toolbar-row">
     <div id="tabBar"></div>
     <div style="display:flex;align-items:center;gap:6px;margin-left:auto;">
-      <span style="font-size:10px;font-weight:600;letter-spacing:0.06em;color:rgba(255,255,255,0.45);white-space:nowrap;">Field Test Version 1.13</span>
+      <span style="font-size:10px;font-weight:600;letter-spacing:0.06em;color:rgba(255,255,255,0.45);white-space:nowrap;">Field Test Version 1.14</span>
       <select id="qualitySelect">
         <option value="hi-res">Hi-res</option>
         <option value="detailed">Detailed</option>
@@ -1939,7 +1939,7 @@ function drawOrbit3D(ctx) {
     const col = (LIGHT ? SHELL_COLORS_LIGHT : SHELL_COLORS)[s % SHELL_COLORS.length];
     const _trailMaxAlpha = LIGHT ? 0.92 : 0.75;
 
-    // Pre-project every electron's trail once, reuse across all 32 buckets
+    // Pre-project every electron's trail once, reuse across all buckets
     const _ePts = [];
     for (const grp of orb3dShellGroups[s]) {
       for (let ei = 0; ei < grp.count; ei++) {
@@ -1952,16 +1952,17 @@ function drawOrbit3D(ctx) {
       }
     }
 
-    // 32 alpha buckets — all electrons in shell batched per bucket (was N_electrons × 32 strokes)
+    // Hi-res: 32 alpha buckets for smooth fade; Detailed: 3 levels (dim / mid / bright)
+    const _nB = _quality === 'hi-res' ? 32 : 3;
     ctx.strokeStyle = col;
-    for (let b = 0; b < 32; b++) {
-      ctx.globalAlpha = ((b + 1) / 32) * _trailMaxAlpha;
+    for (let b = 0; b < _nB; b++) {
+      ctx.globalAlpha = ((b + 1) / _nB) * _trailMaxAlpha;
       ctx.beginPath();
       for (const pts of _ePts) {
         if (!pts) continue;
         const np = pts.length;
-        const i0 = Math.round(b / 32 * (np - 1));
-        const i1 = Math.round((b + 1) / 32 * (np - 1));
+        const i0 = Math.round(b / _nB * (np - 1));
+        const i1 = Math.round((b + 1) / _nB * (np - 1));
         if (i1 <= i0) continue;
         ctx.moveTo(pts[i0][0], pts[i0][1]);
         const mid0x = (pts[i0][0] + pts[Math.min(i0+1,np-1)][0]) / 2;
