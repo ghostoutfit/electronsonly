@@ -1881,7 +1881,7 @@ function drawOrbit3D(ctx) {
     ctx.lineCap = 'round';
     for (const s of occupied) {
       const r3d = getShellRadius(s) * orb3dRadScale * viewZoom;
-      const _shellOffScreen = r3d > _visHH * 1.2;
+      const _shellOffScreen = r3d > W * 0.6;
       if (_shellOffScreen) continue;
       const col = (LIGHT ? SHELL_COLORS_LIGHT : SHELL_COLORS)[s % SHELL_COLORS.length];
       ctx.strokeStyle = col;
@@ -1936,7 +1936,7 @@ function drawOrbit3D(ctx) {
 
   for (const s of occupied) {
     const r3d = getShellRadius(s) * orb3dRadScale * viewZoom;
-    const _shellOffScreen = r3d > _visHH * 1.2;
+    const _shellOffScreen = r3d > W * 0.6;
     if (_shellOffScreen) continue;
     const col = (LIGHT ? SHELL_COLORS_LIGHT : SHELL_COLORS)[s % SHELL_COLORS.length];
     const _trailMaxAlpha = LIGHT ? 0.92 : 0.75;
