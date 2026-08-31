@@ -870,7 +870,7 @@
   <div class="toolbar-row">
     <div id="tabBar"></div>
     <div style="display:flex;align-items:center;gap:6px;margin-left:auto;">
-      <span style="font-size:10px;font-weight:600;letter-spacing:0.06em;color:rgba(255,255,255,0.45);white-space:nowrap;">Field Test Version 1.15</span>
+      <span style="font-size:10px;font-weight:600;letter-spacing:0.06em;color:rgba(255,255,255,0.45);white-space:nowrap;">Field Test Version 1.16</span>
       <select id="qualitySelect">
         <option value="hi-res">Hi-res</option>
         <option value="detailed">Detailed</option>
@@ -1872,92 +1872,16 @@ function drawOrbit3D(ctx) {
   const _visHH = cy - _cachedTbH;  // visible vertical half-height from orbit center
   ctx.lineWidth = 1.5;
 
+  ctx.lineCap = 'round';
   _trailOC = null;
-  if (_quality === 'simple') {
-    // One smooth curved stroke per shell (all electrons batched) + one arrow fill per shell.
-    // The original problem was 32 separate strokes per electron; now it's 1 per shell.
-    const _tma = LIGHT ? 0.92 : 0.75;
-    ctx.lineWidth = 1.5;
-    ctx.lineCap = 'round';
-    for (const s of occupied) {
-      const r3d = getShellRadius(s) * orb3dRadScale * viewZoom;
-      const _shellOffScreen = r3d > W * 0.6;
-      if (_shellOffScreen) continue;
-      const col = (LIGHT ? SHELL_COLORS_LIGHT : SHELL_COLORS)[s % SHELL_COLORS.length];
-
-      // Pre-project all electrons once, reuse across both buckets
-      const _ePts = [];
-      for (const grp of orb3dShellGroups[s]) {
-        for (let ei = 0; ei < grp.count; ei++) {
-          const trail = grp.trails[ei];
-          const n = trail.length;
-          if (n < 2) { _ePts.push(null); continue; }
-          const pts = [];
-          for (let i = 0; i < n; i += 2) pts.push(proj3D(trail[i][0], trail[i][1], trail[i][2], r3d));
-          _ePts.push(pts);
-        }
-      }
-
-      // 2 alpha buckets — dim (old half) then bright (new half)
-      ctx.strokeStyle = col;
-      for (let b = 0; b < 2; b++) {
-        ctx.globalAlpha = ((b + 1) / 2) * _tma;
-        ctx.beginPath();
-        for (const pts of _ePts) {
-          if (!pts) continue;
-          const np = pts.length;
-          const i0 = Math.round(b / 2 * (np - 1));
-          const i1 = Math.round((b + 1) / 2 * (np - 1));
-          if (i1 <= i0) continue;
-          ctx.moveTo(pts[i0][0], pts[i0][1]);
-          const mid0x = (pts[i0][0] + pts[Math.min(i0+1,np-1)][0]) / 2;
-          const mid0y = (pts[i0][1] + pts[Math.min(i0+1,np-1)][1]) / 2;
-          ctx.lineTo(mid0x, mid0y);
-          for (let i = i0 + 1; i < i1; i++)
-            ctx.quadraticCurveTo(pts[i][0], pts[i][1], (pts[i][0]+pts[i+1][0])/2, (pts[i][1]+pts[i+1][1])/2);
-          ctx.lineTo(pts[i1][0], pts[i1][1]);
-        }
-        ctx.stroke();
-      }
-
-      // Arrows — one batched fill per shell
-      if (orb3dDotR > 0) {
-        ctx.globalAlpha = 1;
-        ctx.fillStyle = col;
-        ctx.beginPath();
-        for (const grp of orb3dShellGroups[s]) {
-          for (let ei = 0; ei < grp.count; ei++) {
-            const trail = grp.trails[ei];
-            const n = trail.length;
-            if (n < 1) continue;
-            const [tx, ty] = proj3D(trail[n-1][0], trail[n-1][1], trail[n-1][2], r3d);
-            const [px2, py2] = proj3D(trail[Math.max(0,n-3)][0], trail[Math.max(0,n-3)][1], trail[Math.max(0,n-3)][2], r3d);
-            let dx = tx - px2, dy = ty - py2;
-            const dl = Math.sqrt(dx*dx + dy*dy);
-            if (dl > 0.5) { dx /= dl; dy /= dl; } else { dx = 1; dy = 0; }
-            const _as = s === occupied[0] ? 1.3 : 1.0;
-            const AW = Math.min(orb3dDotR * r3d / 200 * 0.65 * _as, 7.5), AL = AW / 0.65, perpx = -dy, perpy = dx;
-            ctx.moveTo(tx + dx*AL,            ty + dy*AL);
-            ctx.lineTo(tx - dx*AL + perpx*AW, ty - dy*AL + perpy*AW);
-            ctx.lineTo(tx - dx*AL * 0.25,     ty - dy*AL * 0.25);
-            ctx.lineTo(tx - dx*AL - perpx*AW, ty - dy*AL - perpy*AW);
-            ctx.closePath();
-          }
-        }
-        ctx.fill();
-      }
-    }
-    ctx.globalAlpha = 1;
-  } else {
-
+  const _nB = _quality === 'hi-res' ? 32 : _quality === 'detailed' ? 4 : 2;
+  const _trailMaxAlpha = LIGHT ? 0.92 : 0.75;
   for (const s of occupied) {
     const r3d = getShellRadius(s) * orb3dRadScale * viewZoom;
     const _shellOffScreen = r3d > W * 0.6;
-    if (_shellOffScreen) continue;
+    if (_shellOffScreen && _quality !== 'hi-res') continue;
     const col = (LIGHT ? SHELL_COLORS_LIGHT : SHELL_COLORS)[s % SHELL_COLORS.length];
-    const _trailMaxAlpha = LIGHT ? 0.92 : 0.75;
 
-    // Pre-project every electron's trail once, reuse across all buckets
     const _ePts = [];
     for (const grp of orb3dShellGroups[s]) {
       for (let ei = 0; ei < grp.count; ei++) {
@@ -1970,12 +1894,10 @@ function drawOrbit3D(ctx) {
       }
     }
 
-    // Hi-res: 32 alpha buckets for smooth fade; Detailed: 3 levels (dim / mid / bright)
-    const _nB = _quality === 'hi-res' ? 32 : 4;
     ctx.strokeStyle = col;
     for (let b = 0; b < _nB; b++) {
       const _a = ((b + 1) / _nB) * _trailMaxAlpha;
-      ctx.globalAlpha = (_nB === 4 && b === 0) ? _a * 0.5 : _a;
+      ctx.globalAlpha = (_nB !== 32 && b === 0) ? _a * 0.5 : _a;
       ctx.beginPath();
       for (const pts of _ePts) {
         if (!pts) continue;
@@ -1988,13 +1910,12 @@ function drawOrbit3D(ctx) {
         const mid0y = (pts[i0][1] + pts[Math.min(i0+1,np-1)][1]) / 2;
         ctx.lineTo(mid0x, mid0y);
         for (let i = i0 + 1; i < i1; i++)
-          ctx.quadraticCurveTo(pts[i][0], pts[i][1], (pts[i][0] + pts[i+1][0]) / 2, (pts[i][1] + pts[i+1][1]) / 2);
+          ctx.quadraticCurveTo(pts[i][0], pts[i][1], (pts[i][0]+pts[i+1][0])/2, (pts[i][1]+pts[i+1][1])/2);
         ctx.lineTo(pts[i1][0], pts[i1][1]);
       }
       ctx.stroke();
     }
 
-    // Arrows — all electrons in shell batched into one fill call
     ctx.globalAlpha = 1;
     if (orb3dDotR > 0 && !_shellOffScreen) {
       ctx.fillStyle = col;
@@ -2008,17 +1929,16 @@ function drawOrbit3D(ctx) {
         const dl = Math.sqrt(dx*dx + dy*dy);
         if (dl > 0.5) { dx /= dl; dy /= dl; } else { dx = 1; dy = 0; }
         const _as = s === occupied[0] ? 1.3 : 1.0;
-        const W = Math.min(orb3dDotR * r3d / 200 * 0.65 * _as, 7.5), L = W / 0.65, perpx = -dy, perpy = dx;
-        ctx.moveTo(tx + dx*L,            ty + dy*L);
-        ctx.lineTo(tx - dx*L + perpx*W,  ty - dy*L + perpy*W);
-        ctx.lineTo(tx - dx*L * 0.25,     ty - dy*L * 0.25);
-        ctx.lineTo(tx - dx*L - perpx*W,  ty - dy*L - perpy*W);
+        const _aw = Math.min(orb3dDotR * r3d / 200 * 0.65 * _as, 7.5), _al = _aw / 0.65, perpx = -dy, perpy = dx;
+        ctx.moveTo(tx + dx*_al,              ty + dy*_al);
+        ctx.lineTo(tx - dx*_al + perpx*_aw,  ty - dy*_al + perpy*_aw);
+        ctx.lineTo(tx - dx*_al * 0.25,       ty - dy*_al * 0.25);
+        ctx.lineTo(tx - dx*_al - perpx*_aw,  ty - dy*_al - perpy*_aw);
         ctx.closePath();
       }
       ctx.fill();
     }
   }
-  } // end else (hi-res/detailed trails)
   ctx.globalAlpha = 1;
 
   // Atomic radius label — same flat horizontal line as Shells tab
