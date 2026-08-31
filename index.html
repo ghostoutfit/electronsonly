@@ -1649,7 +1649,7 @@ let orb3dShellGroups = Array.from({length: ORB3D_N}, () => []);
 // Each group: { count:1|2, phase, wanderPh, radPh, axisPhi, trails:[[],[]] }
 
 // Per-shell tunable parameters
-let orbShellSpeed    = [6.0, 5.25, 4.5, 3.75];
+let orbShellSpeed    = [6.0, 5.25, 4.5, 8.0];
 let orbShellRadAmp   = [0.20, 0.20, 0.10, 0.05];
 let orbShellWander   = [45,   50,   55,   60];
 let orbShellTrailLen = [140,  140,  140,  140];
@@ -1958,7 +1958,8 @@ function drawOrbit3D(ctx) {
     const _nB = _quality === 'hi-res' ? 32 : 3;
     ctx.strokeStyle = col;
     for (let b = 0; b < _nB; b++) {
-      ctx.globalAlpha = ((b + 1) / _nB) * _trailMaxAlpha;
+      const _a = ((b + 1) / _nB) * _trailMaxAlpha;
+      ctx.globalAlpha = (_nB === 3 && b === 0) ? _a * 0.5 : _a;
       ctx.beginPath();
       for (const pts of _ePts) {
         if (!pts) continue;
