@@ -870,7 +870,8 @@
   <div class="toolbar-row">
     <div id="tabBar"></div>
     <div style="display:flex;align-items:center;gap:6px;margin-left:auto;">
-      <span style="font-size:10px;font-weight:600;letter-spacing:0.06em;color:rgba(255,255,255,0.45);white-space:nowrap;">Field Test Version 1.16</span>
+      <span id="benchScore" class="dev-ui" style="font-size:10px;font-weight:600;font-variant-numeric:tabular-nums;color:#eeff00;white-space:nowrap;opacity:0.75;"></span>
+      <span style="font-size:10px;font-weight:600;letter-spacing:0.06em;color:rgba(255,255,255,0.45);white-space:nowrap;">Field Test Version 1.17</span>
       <select id="qualitySelect">
         <option value="hi-res">Hi-res</option>
         <option value="detailed">Detailed</option>
@@ -1090,33 +1091,82 @@ function _applyQuality(level) {
 }
 
 // Draws 100 gradient+shadowBlur particles to an offscreen canvas and returns ms.
-// getImageData() at the end forces a GPU sync so the time is real.
-// A 15-particle warm-up pass runs first to settle JIT and GPU init cost.
+// getImageData() forces a GPU→CPU sync so the time reflects real GPU cost.
+// Warm-up: 40 particles + a getImageData flush to prime the GPU readback path.
+// Timed pass runs twice; minimum is returned to eliminate cold-start outliers.
 function _runPerfBenchmark() {
   const oc = document.createElement('canvas');
   oc.width = 300; oc.height = 300;
   const dc = oc.getContext('2d');
   const R = PARTICLE_RADIUS;
-  for (let i = 0; i < 15; i++) {
-    const x = 15 + (i % 5) * 40, y = 15 + Math.floor(i / 5) * 40;
+  function _draw100() {
+    for (let i = 0; i < 100; i++) {
+      const x = 15 + (i % 10) * 27, y = 15 + Math.floor(i / 10) * 27;
+      const g1 = dc.createRadialGradient(x, y, 0, x, y, R * 1.1);
+      g1.addColorStop(0, '#ff1a65'); g1.addColorStop(0.82, '#ff1a65'); g1.addColorStop(1, 'rgba(0,0,0,0)');
+      dc.fillStyle = g1; dc.beginPath(); dc.arc(x, y, R * 1.1, 0, Math.PI * 2); dc.fill();
+      const g2 = dc.createRadialGradient(x, y, 0, x, y, R);
+      g2.addColorStop(0, '#ff80b0'); g2.addColorStop(0.5, '#ff80b0'); g2.addColorStop(1, 'rgba(0,0,0,0)');
+      dc.save(); dc.shadowColor = '#ff80b0'; dc.shadowBlur = 8; dc.globalAlpha = 0.82;
+      dc.fillStyle = g2; dc.beginPath(); dc.arc(x, y, R, 0, Math.PI * 2); dc.fill();
+      dc.restore(); dc.globalAlpha = 1;
+    }
+    dc.getImageData(0, 0, 1, 1);
+  }
+  // Warm-up: 40 particles + flush to settle JIT, GPU shader compilation, and readback path
+  for (let i = 0; i < 40; i++) {
+    const x = 15 + (i % 8) * 35, y = 15 + Math.floor(i / 8) * 35;
     const g = dc.createRadialGradient(x, y, 0, x, y, R);
     g.addColorStop(0, '#ff1a65'); g.addColorStop(1, 'rgba(0,0,0,0)');
     dc.fillStyle = g; dc.beginPath(); dc.arc(x, y, R, 0, Math.PI * 2); dc.fill();
   }
-  const t0 = performance.now();
-  for (let i = 0; i < 100; i++) {
-    const x = 15 + (i % 10) * 27, y = 15 + Math.floor(i / 10) * 27;
-    const g1 = dc.createRadialGradient(x, y, 0, x, y, R * 1.1);
-    g1.addColorStop(0, '#ff1a65'); g1.addColorStop(0.82, '#ff1a65'); g1.addColorStop(1, 'rgba(0,0,0,0)');
-    dc.fillStyle = g1; dc.beginPath(); dc.arc(x, y, R * 1.1, 0, Math.PI * 2); dc.fill();
-    const g2 = dc.createRadialGradient(x, y, 0, x, y, R);
-    g2.addColorStop(0, '#ff80b0'); g2.addColorStop(0.5, '#ff80b0'); g2.addColorStop(1, 'rgba(0,0,0,0)');
-    dc.save(); dc.shadowColor = '#ff80b0'; dc.shadowBlur = 8; dc.globalAlpha = 0.82;
-    dc.fillStyle = g2; dc.beginPath(); dc.arc(x, y, R, 0, Math.PI * 2); dc.fill();
-    dc.restore(); dc.globalAlpha = 1;
+  dc.getImageData(0, 0, 1, 1);
+  // Two timed passes — take the minimum to get sustained throughput, not cold-start cost
+  const t0 = performance.now(); _draw100(); const r0 = performance.now() - t0;
+  const t1 = performance.now(); _draw100(); const r1 = performance.now() - t1;
+  return Math.min(r0, r1);
+}
+
+// Trail benchmark — models the actual orbit3D stroke pattern:
+// 3 colors × 32 buckets = 96 beginPath/stroke calls, each drawing slices of
+// 10 trails (140 pts each) via quadraticCurveTo, matching hi-res rendering exactly.
+function _runTrailBenchmark() {
+  const oc = document.createElement('canvas');
+  oc.width = 800; oc.height = 600;
+  const dc = oc.getContext('2d');
+  dc.lineCap = 'round'; dc.lineJoin = 'round'; dc.lineWidth = 1.5;
+  const _nB = 32, trailLen = 140;
+  const colors = ['#4488ff', '#44ff44', '#ff66cc'];
+  const trails = Array.from({length: 10}, (_, t) =>
+    Array.from({length: trailLen}, (_, i) => [
+      100 + (t % 5) * 130 + Math.sin(i * 0.22 + t * 1.3) * 45,
+      70  + Math.floor(t / 5) * 260 + i * 2.2 + Math.cos(i * 0.17 + t) * 22
+    ])
+  );
+  function _drawTrails() {
+    for (let ci = 0; ci < colors.length; ci++) {
+      dc.strokeStyle = colors[ci];
+      for (let b = 0; b < _nB; b++) {
+        dc.globalAlpha = ((b + 1) / _nB) * 0.75;
+        dc.beginPath();
+        for (const pts of trails) {
+          const np = pts.length;
+          const i0 = Math.round(b / _nB * (np - 1));
+          const i1 = Math.round((b + 1) / _nB * (np - 1));
+          if (i1 <= i0) continue;
+          dc.moveTo(pts[i0][0], pts[i0][1]);
+          for (let i = i0 + 1; i <= i1; i++)
+            dc.quadraticCurveTo(pts[i-1][0], pts[i-1][1], (pts[i-1][0]+pts[i][0])/2, (pts[i-1][1]+pts[i][1])/2);
+        }
+        dc.stroke();
+      }
+    }
+    dc.getImageData(0, 0, 1, 1);
   }
-  dc.getImageData(0, 0, 1, 1); // force GPU flush so timing is real
-  return performance.now() - t0;
+  _drawTrails(); dc.getImageData(0, 0, 1, 1);
+  const t0 = performance.now(); _drawTrails(); const r0 = performance.now() - t0;
+  const t1 = performance.now(); _drawTrails(); const r1 = performance.now() - t1;
+  return Math.min(r0, r1);
 }
 
 let _cachedTbH = 0;
@@ -4523,22 +4573,27 @@ applyTheme('A');
 syncTabButtons();
 initNuclei();
 
-// Startup benchmark — measure actual gradient render cost and set initial quality.
-// Thresholds are per 100 particles; the full nucleus is ~220 so multiply by ~2.2
-// to project real frame cost.
-//   < 3ms / 100p → hi-res   (< ~7ms projected — fine at 60fps)
-//   3–6ms / 100p → detailed (~7–13ms projected — reduced effects)
-//   > 6ms / 100p → simple   (> ~13ms projected — minimal rendering)
+// Startup benchmark — trail score gates quality; grad score displayed for reference.
+// Trail benchmark: 96 beginPath/stroke calls (3 colors × 32 buckets), matching
+// the hi-res orbit3D rendering pattern. Two warm passes, minimum taken.
+//   < 8ms  → hi-res    (modern + mid-range hardware)
+//   8–13ms → detailed  (older hardware; flat-fill 60fps viable)
+//   > 13ms → simple    (budget Chromebooks + under load; needs 30fps gate)
+// Hi-res/detailed defaults: all 3 options shown.
+// Simple default: hi-res option removed.
 (function _startupBenchmark() {
   const ms = _runPerfBenchmark();
-  if (ms > 6) {
+  const msT = _runTrailBenchmark();
+  const el = document.getElementById('benchScore');
+  if (el) el.textContent = `grad ${ms.toFixed(1)}ms  trail ${msT.toFixed(1)}ms`;
+  if (msT > 13) {
     const hiOpt = document.querySelector('#qualitySelect option[value="hi-res"]');
     if (hiOpt) hiOpt.remove();
     _applyQuality('simple');
-  } else if (ms > 3) {
+  } else if (msT > 8) {
     _applyQuality('detailed');
   }
-  // else stays 'hi-res' (default)
+  // else stays 'hi-res' (default); all three options remain available
 }());
 
 setNucleusFromZ(10);
