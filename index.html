@@ -871,7 +871,7 @@
     <div id="tabBar"></div>
     <div style="display:flex;align-items:center;gap:6px;margin-left:auto;">
       <span id="benchScore" class="dev-ui" style="font-size:10px;font-weight:600;font-variant-numeric:tabular-nums;color:#eeff00;white-space:nowrap;opacity:0.75;"></span>
-      <span style="font-size:10px;font-weight:600;letter-spacing:0.06em;color:rgba(255,255,255,0.45);white-space:nowrap;">Field Test Version 1.17</span>
+      <span style="font-size:10px;font-weight:600;letter-spacing:0.06em;color:rgba(255,255,255,0.45);white-space:nowrap;">Field Test Version 1.18</span>
       <select id="qualitySelect">
         <option value="hi-res">Hi-res</option>
         <option value="detailed">Detailed</option>
@@ -1623,7 +1623,7 @@ let selectedNucleusKey = 'u235';
 let currentSeed = Math.floor(Math.random() * 1e9);
 let viewZoom = 0.265;
 let panOffsetX = 0, panOffsetY = 0, _panDragState = null;
-let currentTab = 'shells';
+let currentTab = 'orbit3d';
 
 // ── Action log (for bug reports) ─────────────────────────────────────────────
 const actionLog = [];
@@ -4605,7 +4605,7 @@ syncFormButtons();
 arrowMode = 0;
 fvShellMode = true;
 document.querySelectorAll('[data-fvmode]').forEach(b => b.classList.toggle('active', b.dataset.fvmode === 'shell'));
-currentTab = 'shells';
+currentTab = 'orbit3d';
 syncTabButtons();
 document.getElementById('showElectric').checked = true;
 document.getElementById('showElectric').dispatchEvent(new Event('change'));
