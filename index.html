@@ -800,6 +800,23 @@
   }
   #qualitySelect:focus { outline: 1px solid rgba(255,100,100,0.4); }
   #qualitySelect:hover { color: rgba(255,255,255,0.55); border-color: rgba(255,255,255,0.18); }
+  /* `low` tier: tint the control red so the limited mode is visible at a glance */
+  #qualitySelect.q-low { color: rgba(255,120,110,0.85); border-color: rgba(255,90,80,0.45); }
+  #qualitySelect.q-low:hover { color: rgba(255,140,130,1); }
+
+  /* Transient performance message (shown when the Low tier engages). Positioned by JS
+     directly under the quality selector; max-width is capped and box-sizing is border-box
+     so the box can never bleed past a screen edge, even on a narrow phone. */
+  #perfMsg {
+    position: fixed; top: 60px; right: 8px; z-index: 300;
+    max-width: min(340px, calc(100vw - 16px)); box-sizing: border-box;
+    background: rgba(40,10,12,0.94); color: #ffd9d4;
+    border: 1px solid rgba(255,90,80,0.5); border-radius: 8px;
+    padding: 9px 14px; font-size: 13px; line-height: 1.35; text-align: left;
+    box-shadow: 0 4px 18px rgba(0,0,0,0.5);
+    opacity: 0; pointer-events: none; transition: opacity 0.25s ease;
+  }
+  #perfMsg.show { opacity: 1; }
 
   /* ── Dev panel ──────────────────────────────────────────────────────────── */
   .dev-row {
@@ -871,11 +888,12 @@
     <div id="tabBar"></div>
     <div style="display:flex;align-items:center;gap:6px;margin-left:auto;">
       <span id="benchScore" class="dev-ui" style="font-size:10px;font-weight:600;font-variant-numeric:tabular-nums;color:#eeff00;white-space:nowrap;opacity:0.75;"></span>
-      <span style="font-size:10px;font-weight:600;letter-spacing:0.06em;color:rgba(255,255,255,0.45);white-space:nowrap;">Field Test Version 1.18</span>
+      <span style="font-size:10px;font-weight:600;letter-spacing:0.06em;color:rgba(255,255,255,0.45);white-space:nowrap;">Field Test Version 1.19</span>
       <select id="qualitySelect">
         <option value="hi-res">Hi-res</option>
         <option value="detailed">Detailed</option>
         <option value="simple">Simple</option>
+        <option value="low">Low</option>
       </select>
       <button class="theme-btn active" id="themeA" title="Synthwave"></button>
       <button class="theme-btn" id="themeB" title="Industrial"></button>
@@ -933,7 +951,7 @@
             <input type="checkbox" id="autoscaleCheckbox" checked>
             <span class="field-label-electric">Autoscale</span>
           </label>
-          <label class="toggle-label">
+          <label class="toggle-label" id="gridToggleLabel">
             <input type="checkbox" id="showGridCheckbox">
             <span class="field-label-electric">Grid</span>
           </label>
@@ -1062,7 +1080,9 @@ const coulombStrength = 150;
 
 // ─── Canvas ───────────────────────────────────────────────────────────────────
 const canvas   = document.getElementById('canvas');
-const ctx      = canvas.getContext('2d');
+// alpha:false — every frame paints an opaque background, so the compositor can
+// skip blending the full-screen canvas with the page behind it.
+const ctx      = canvas.getContext('2d', { alpha: false });
 const egCanvas = document.getElementById('energyGraph');
 const egCtx    = egCanvas.getContext('2d');
 
@@ -1079,15 +1099,56 @@ let heatmapDirty    = true;
 
 // ── Quality selector ──────────────────────────────────────────────────────────
 let _quality = 'hi-res';  // 'hi-res' | 'detailed' | 'simple'
+let _resetCount  = 0;
+let _benchmarkMs = 0;
 
 // ── Dev perf toggles (driven by _applyQuality) ────────────────────────────────
 let _flatFill = true;
 
+// The two "cheap" tiers share one flat-fill / blit-nucleus / 30fps code path. `low`
+// is `simple` pushed further (1 trail bucket, decimated + shortened trails, no grid/rings)
+// for devices that would otherwise crash — it trades real visual quality to keep frames alive.
+function _isLowTier(q = _quality) { return q === 'simple' || q === 'low'; }
+
+let _perfMsgTimer = null;
+function _showPerfMsg(text) {
+  let el = document.getElementById('perfMsg');
+  if (!el) { el = document.createElement('div'); el.id = 'perfMsg'; document.body.appendChild(el); }
+  el.textContent = text;
+  // Anchor directly under the quality selector, right edge aligned with it. right/max-width
+  // are both clamped so the box stays fully on-screen at any width.
+  const q = document.getElementById('qualitySelect');
+  if (q) {
+    const r = q.getBoundingClientRect();
+    el.style.top = (r.bottom + 6) + 'px';
+    el.style.right = Math.max(8, window.innerWidth - r.right) + 'px';
+  }
+  // force reflow so the transition replays even if the element is already shown
+  void el.offsetWidth;
+  el.classList.add('show');
+  clearTimeout(_perfMsgTimer);
+  _perfMsgTimer = setTimeout(() => el.classList.remove('show'), 6000);
+}
+
+// The grid is off entirely on the `low` tier, so its controls do nothing there — hide them.
+function _syncLowUI() {
+  const low = _quality === 'low';
+  const gl = document.getElementById('gridToggleLabel');
+  if (gl) gl.style.display = low ? 'none' : '';
+  const gt = document.getElementById('gridTypeSelect');
+  if (gt) gt.style.display = low ? 'none' : '';
+}
+
 function _applyQuality(level) {
+  const wasLow = _quality === 'low';
   _quality = level;
   const el = document.getElementById('qualitySelect');
-  if (el) el.value = level;
+  if (el) { el.value = level; el.classList.toggle('q-low', level === 'low'); }
   _flatFill = true;
+  _syncLowUI();
+  // Entering Low (whether by menu pick, startup benchmark, or an adaptive drop) means the
+  // machine is struggling — tell the user plainly and point them at the cheapest real fix.
+  if (level === 'low' && !wasLow) _showPerfMsg('Model features are limited. Close tabs or restart your browser for better performance.');
 }
 
 // Draws 100 gradient+shadowBlur particles to an offscreen canvas and returns ms.
@@ -1312,7 +1373,7 @@ function drawElectricHeatmap(particleList, sampleFrac = 0.5, sigmaScale = 1.0, m
     destCtx.drawImage(hmComposite, 0, 0);
     return;
   }
-  const scale    = _quality === 'simple' ? 0.08 : _quality === 'detailed' ? 0.15 : 0.25;
+  const scale    = _isLowTier() ? 0.08 : _quality === 'detailed' ? 0.15 : 0.25;
   const w        = Math.ceil(fullW * scale);
   const h        = Math.ceil(fullH * scale);
   const invScale = 1 / scale;
@@ -1456,8 +1517,35 @@ function outerIntersection(c1, c2, R, ncx, ncy) {
   return d1 > d2 ? p1 : p2;
 }
 
+let _cloudSprite = null, _cloudSpriteKey = '';
 function drawCloudOutline(cx, cy, sphereR, c = ctx) {
   const R = PARTICLE_RADIUS;
+  const LIGHT = document.body.classList.contains('screenshot-mode');
+  // Main canvas: blit a cached image of the outline (a 22px shadowBlur over a long
+  // scalloped path is one of the priciest single draws in the sim). Rebuilt only
+  // when the nucleus size, zoom, or theme changes.
+  if (c === ctx) {
+    const m = c.getTransform();
+    const scale = Math.hypot(m.a, m.b);
+    if (scale > 0.005) {
+      const key = `${sphereR}|${scale.toFixed(4)}|${LIGHT}`;
+      if (!_cloudSprite || _cloudSpriteKey !== key) {
+        const half = Math.ceil((sphereR + R + 4) * scale + 40);  // +40 device px for the 22px blur
+        if (!_cloudSprite) _cloudSprite = document.createElement('canvas');
+        _cloudSprite.width = _cloudSprite.height = half * 2;
+        const sc = _cloudSprite.getContext('2d');
+        sc.translate(half, half);
+        sc.scale(scale, scale);
+        drawCloudOutline(0, 0, sphereR, sc);
+        _cloudSprite._half = half;
+        _cloudSpriteKey = key;
+      }
+      const inv = 1 / scale, wh = _cloudSprite._half * inv;
+      c.drawImage(_cloudSprite, cx - wh, cy - wh, wh * 2, wh * 2);
+      return;
+    }
+  }
+
   const N = Math.max(6, Math.round(2 * Math.PI * sphereR / (R * 1.5)));
 
   const centers = Array.from({ length: N }, (_, k) => {
@@ -1477,7 +1565,6 @@ function drawCloudOutline(cx, cy, sphereR, c = ctx) {
     };
   });
 
-  const LIGHT = document.body.classList.contains('screenshot-mode');
   c.save();
   c.shadowColor = LIGHT ? 'rgba(0,0,0,0)' : 'rgba(80,160,255,0.9)';
   c.shadowBlur  = LIGHT ? 0 : 22;
@@ -1513,77 +1600,129 @@ function updateParticleJitter(count, strength = 1, slow = false) {
   }
 }
 
+// ── Particle sprite cache ────────────────────────────────────────────────────
+// Every particle of a type looks identical, so render one proton and one neutron
+// per (style, zoom) into small offscreen canvases and blit them with drawImage.
+// Replaces 2 gradients + shadowBlur (hi-res) or 3 arcs + font parse + fillText
+// (detailed) per particle per frame with one drawImage. Sprites are rendered at
+// the destination's device scale, so pixels map 1:1 and shadowBlur (which is
+// screen-space and ignores the transform) matches the direct-draw look.
+const _PSPRITE_MARGIN = 12;  // device px around R*1.1 for the 8px shadowBlur halo
+let _pSprite = null, _pSpriteKey = '';
+// The proton "+" uses Lexend — rebuild once the webfont arrives so it isn't baked in the fallback font
+if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => { _pSpriteKey = ''; });
+function _getParticleSprites(scale, radiusScale) {
+  const key = `${_flatFill ? (_quality === 'low' ? 'm' : _quality === 'simple' ? 's' : 'f') : 'g'}|${scale.toFixed(4)}|${radiusScale}`;
+  if (_pSprite && _pSpriteKey === key) return _pSprite;
+  const R    = PARTICLE_RADIUS * radiusScale;
+  const half = Math.ceil(R * 1.1 * scale + _PSPRITE_MARGIN);
+  const size = half * 2;
+  const mk = (isProton) => {
+    const oc = (_pSprite && _pSprite.size === size) ? _pSprite[isProton ? 'proton' : 'neutron'] : document.createElement('canvas');
+    oc.width = oc.height = size;  // also clears
+    const c = oc.getContext('2d');
+    c.translate(half, half);
+    c.scale(scale, scale);
+    _drawParticleShape(c, 0, 0, isProton, R, radiusScale);
+    return oc;
+  };
+  const proton = mk(true), neutron = mk(false);
+  _pSprite = { proton, neutron, half, size, scale };
+  _pSpriteKey = key;
+  return _pSprite;
+}
+
+function _drawParticleShape(dc, px, py, isProton, R, radiusScale) {
+  const mid  = isProton ? '#ff1a65' : '#70707f';
+  const core = isProton ? '#ff80b0' : '#b0b0c4';
+  if (_flatFill) {
+    if (!_isLowTier()) {
+      // Hi-res / Detailed: layered rings matching v11 particle appearance
+      // Draw back-to-front using filled circles so rings never bleed inside
+      const cW = 4;   // colored mid-ring width (world px — scales with zoom)
+      const wW = 1;   // dark gray outline width (world px — scales with zoom)
+      const R1 = R * 1.1;
+      // Outermost: dark gray ring
+      dc.fillStyle = 'rgba(40,40,40,0.85)';
+      dc.beginPath(); dc.arc(px, py, R1, 0, Math.PI * 2); dc.fill();
+      // Middle: mid color ring (matches v11 outer gradient color)
+      dc.fillStyle = mid;
+      dc.beginPath(); dc.arc(px, py, R1 - wW, 0, Math.PI * 2); dc.fill();
+      // Inner: core (lighter) fill — matches v11 bright center
+      dc.fillStyle = core;
+      dc.beginPath(); dc.arc(px, py, R1 - wW - cW, 0, Math.PI * 2); dc.fill();
+    } else {
+      // Simple: thin white stroke over mid fill (original appearance)
+      dc.fillStyle = mid;
+      dc.beginPath(); dc.arc(px, py, R, 0, Math.PI * 2); dc.fill();
+      dc.strokeStyle = 'rgba(255,255,255,0.45)';
+      dc.lineWidth = 1;
+      dc.stroke();
+    }
+  } else {
+    // Base fill — soft edge fade
+    const baseGrad = dc.createRadialGradient(px, py, 0, px, py, R * 1.1);
+    baseGrad.addColorStop(0,    mid);
+    baseGrad.addColorStop(0.82, mid);
+    baseGrad.addColorStop(1,    'rgba(0,0,0,0)');
+    dc.fillStyle = baseGrad;
+    dc.beginPath(); dc.arc(px, py, R * 1.1, 0, Math.PI * 2); dc.fill();
+
+    // Inner glow with shadowBlur for fuzzy halo
+    const innerGlow = dc.createRadialGradient(px, py, 0, px, py, R);
+    innerGlow.addColorStop(0,   core);
+    innerGlow.addColorStop(0.5, core);
+    innerGlow.addColorStop(1,   'rgba(0,0,0,0)');
+    dc.save();
+    dc.shadowColor = core;
+    dc.shadowBlur  = 8;
+    dc.globalAlpha = 0.82;
+    dc.fillStyle = innerGlow;
+    dc.beginPath(); dc.arc(px, py, R, 0, Math.PI * 2); dc.fill();
+    dc.restore();
+    dc.globalAlpha = 1;
+  }
+
+  // + label on protons
+  if (isProton) {
+    dc.fillStyle = 'rgba(255,255,255,0.88)';
+    dc.font = `bold ${Math.max(6, Math.round(11 * radiusScale))}px Lexend, sans-serif`;
+    dc.textAlign = 'center';
+    dc.textBaseline = 'middle';
+    dc.fillText('+', px, py + 1 * radiusScale);
+  }
+}
+
+const _sortBuf = [];
+const _NO_JITTER = { x: 0, y: 0 };
+const _particleOrder = (a, b) => ((a.z || 0) - (b.z || 0)) || ((a.type === 'proton') - (b.type === 'proton'));
 function drawParticles(particles, jitterScale = 1, radiusScale = 1, drawCtx = ctx) {
   const dc = drawCtx;
   const R = PARTICLE_RADIUS * radiusScale;
-  // z ascending = back to front; protons after neutrons at same depth
-  const sorted = [...particles].sort((a, b) =>
-    ((a.z || 0) - (b.z || 0)) || ((a.type === 'proton') - (b.type === 'proton'))
-  );
-  for (const p of sorted) {
-    const j  = (p.i != null && particleJitter[p.i]) ? particleJitter[p.i] : { x: 0, y: 0 };
+  // z ascending = back to front; protons after neutrons at same depth.
+  // z changes when the orbit view is dragged, so re-sort each call (into a reused buffer).
+  _sortBuf.length = 0;
+  for (const p of particles) _sortBuf.push(p);
+  _sortBuf.sort(_particleOrder);
+  // Main canvas → sprite blits. Offscreen prerenders (nucleus image) draw directly.
+  let spr = null, sprInv = 0;
+  if (dc === ctx) {
+    const m = dc.getTransform();
+    const scale = Math.hypot(m.a, m.b);
+    if (scale > 0.005) { spr = _getParticleSprites(scale, radiusScale); sprInv = 1 / scale; }
+  }
+  for (const p of _sortBuf) {
+    const j  = (p.i != null && particleJitter[p.i]) ? particleJitter[p.i] : _NO_JITTER;
     const px = p.x + j.x * jitterScale, py = p.y + j.y * jitterScale;
     const isProton = p.type === 'proton';
-    const mid  = isProton ? '#ff1a65' : '#70707f';
-    const core = isProton ? '#ff80b0' : '#b0b0c4';
-
-    if (_flatFill) {
-      if (_quality !== 'simple') {
-        // Hi-res / Detailed: layered rings matching v11 particle appearance
-        // Draw back-to-front using filled circles so rings never bleed inside
-        const cW = 4;   // colored mid-ring width (world px — scales with zoom)
-        const wW = 1;   // dark gray outline width (world px — scales with zoom)
-        const R1 = R * 1.1;
-        // Outermost: dark gray ring
-        dc.fillStyle = 'rgba(40,40,40,0.85)';
-        dc.beginPath(); dc.arc(px, py, R1, 0, Math.PI * 2); dc.fill();
-        // Middle: mid color ring (matches v11 outer gradient color)
-        dc.fillStyle = mid;
-        dc.beginPath(); dc.arc(px, py, R1 - wW, 0, Math.PI * 2); dc.fill();
-        // Inner: core (lighter) fill — matches v11 bright center
-        dc.fillStyle = core;
-        dc.beginPath(); dc.arc(px, py, R1 - wW - cW, 0, Math.PI * 2); dc.fill();
-      } else {
-        // Simple: thin white stroke over mid fill (original appearance)
-        dc.fillStyle = mid;
-        dc.beginPath(); dc.arc(px, py, R, 0, Math.PI * 2); dc.fill();
-        dc.strokeStyle = 'rgba(255,255,255,0.45)';
-        dc.lineWidth = 1;
-        dc.stroke();
-      }
+    if (spr) {
+      const ws = spr.size * sprInv, wh = spr.half * sprInv;
+      dc.drawImage(isProton ? spr.proton : spr.neutron, px - wh, py - wh, ws, ws);
     } else {
-      // Base fill — soft edge fade
-      const baseGrad = dc.createRadialGradient(px, py, 0, px, py, R * 1.1);
-      baseGrad.addColorStop(0,    mid);
-      baseGrad.addColorStop(0.82, mid);
-      baseGrad.addColorStop(1,    'rgba(0,0,0,0)');
-      dc.fillStyle = baseGrad;
-      dc.beginPath(); dc.arc(px, py, R * 1.1, 0, Math.PI * 2); dc.fill();
-
-      // Inner glow with shadowBlur for fuzzy halo
-      const innerGlow = dc.createRadialGradient(px, py, 0, px, py, R);
-      innerGlow.addColorStop(0,   core);
-      innerGlow.addColorStop(0.5, core);
-      innerGlow.addColorStop(1,   'rgba(0,0,0,0)');
-      dc.save();
-      dc.shadowColor = core;
-      dc.shadowBlur  = 8;
-      dc.globalAlpha = 0.82;
-      dc.fillStyle = innerGlow;
-      dc.beginPath(); dc.arc(px, py, R, 0, Math.PI * 2); dc.fill();
-      dc.restore();
-      dc.globalAlpha = 1;
-    }
-
-    // + label on protons
-    if (isProton) {
-      dc.fillStyle = 'rgba(255,255,255,0.88)';
-      dc.font = `bold ${Math.max(6, Math.round(11 * radiusScale))}px Lexend, sans-serif`;
-      dc.textAlign = 'center';
-      dc.textBaseline = 'middle';
-      dc.fillText('+', px, py + 1 * radiusScale);
+      _drawParticleShape(dc, px, py, isProton, R, radiusScale);
     }
   }
+  _sortBuf.length = 0;
 }
 
 // ─── Nucleus definitions (for NEW button dropdown) ────────────────────────────
@@ -1687,10 +1826,14 @@ let electronDotR = 9.0;  // electron dot radius (shells mode); 0 = hidden
 const ORB3D_N = 4;  // max shells supported
 let orb3dRadScale = 1.0;  // orbit-only view scale
 let orb3dDotR = 10;       // dot radius at trail head in orbit (0 = hidden)
+let orb3dHairAlpha = 1.5;  // alpha boost for 1px hairline trails (Simple/Detailed)
+let _LOW_TRAIL_STRIDE = 2;   // `low` tier only: project/stroke every Nth trail point (2 ≈ half cost). Console-tunable.
+let _LOW_TRAIL_CAP    = 60;  // `low` tier only: render only the last N points of each trail (shorter comet = far less work)
 let orb3dAZ = 0.60;       // azimuth angle (horizontal rotation)
 let orb3dEL = 0.42;       // elevation angle (vertical tilt)
 let orb3dPaused = false;  // true = electrons frozen; drag rotates view
 let _gridOC = null, _gridOCKey = ''; // offscreen grid cache
+const _projBufs = [], _projLens = []; // reused per-frame trail projection buffers
 let orb3dDragState = null; // { lastX, lastY, moved } during active drag
 
 // Per-shell group state — each shell has independent pair/loner groups
@@ -1729,8 +1872,23 @@ function _o3Precess(ax, rot, angle) {
   ]);
 }
 
+// Occupied shells, returned in a reused ascending array. Called twice per orbit frame
+// (step + draw); the previous `[...new Set(electrons.map(...))]` allocated a fresh array
+// and Set each time — ~14k short-lived allocations/sec on a full atom, i.e. steady GC
+// pressure (and the resulting pauses) on Chromebooks. Shells are always 0..ORB3D_N-1.
+const _occBuf = [];
+function _occupiedShells() {
+  let mask = 0;
+  for (const e of electrons) { const s = e.shell; if (s >= 0 && s < ORB3D_N) mask |= (1 << s); }
+  _occBuf.length = 0;
+  for (let s = 0; s < ORB3D_N; s++) if (mask & (1 << s)) _occBuf.push(s);
+  return _occBuf;
+}
+
+let _orbStep = 0;  // monotonic sim-step counter; tags each trail point for stable decimation
 function stepOrbit3D(dt = 1) {
-  const occupied = [...new Set(electrons.map(e => e.shell))];
+  _orbStep++;
+  const occupied = _occupiedShells();
   for (const s of occupied) {
     const sp      = orbShellSpeed[s]    ?? 8;
     const radAmp  = orbShellRadAmp[s]   ?? 0.2;
@@ -1750,8 +1908,14 @@ function stepOrbit3D(dt = 1) {
         const ph = grp.phase + (grp.phOff?.[ei] ?? ei * Math.PI);
         const c = Math.cos(ph), ss = Math.sin(ph);
         const trail = grp.trails[ei];
-        trail.push([r*(c*e1[0]+ss*e2[0]), r*(c*e1[1]+ss*e2[1]), r*(c*e1[2]+ss*e2[2])]);
+        // Recycle the oldest point's array once the trail is full — avoids one
+        // allocation per electron per step (steady GC pressure on slow devices).
         if (trail.length > maxLen) trail.splice(0, trail.length - maxLen);
+        const pt = trail.length === maxLen ? trail.shift() : [0, 0, 0, 0];
+        pt[0] = r*(c*e1[0]+ss*e2[0]); pt[1] = r*(c*e1[1]+ss*e2[1]); pt[2] = r*(c*e1[2]+ss*e2[2]);
+        pt[3] = _orbStep;  // absolute step tag — decimation keys off this, not array index, so
+                           // the kept subset is stable as the trail shifts (no per-frame shimmer)
+        trail.push(pt);
       }
     }
   }
@@ -1770,13 +1934,13 @@ function drawOrbit3D(ctx) {
   ctx.scale(viewZoom, viewZoom);
   ctx.translate(-W / 2, -H / 2);
   if (showParticles) {
-    if (_imgParent && _quality === 'simple') {
+    if (_imgParent && _isLowTier()) {
       const jx = (Math.random() - 0.5) * 0.7, jy = (Math.random() - 0.5) * 0.7;
       ctx.drawImage(_imgParent, animParent.cx - _imgParent.width / 2 + jx, animParent.cy - _imgParent.height / 2 + jy);
     } else {
       const _svFlat = _flatFill, _svQ = _quality;
       if (_quality === 'hi-res') _flatFill = false;
-      else if (_quality === 'simple') _quality = 'detailed';
+      else if (_isLowTier()) _quality = 'detailed';
       drawParticles(animParent.particles, 1);
       _flatFill = _svFlat; _quality = _svQ;
     }
@@ -1792,12 +1956,12 @@ function drawOrbit3D(ctx) {
     return [cx + rx, cy - (ry*cosEL - rz*sinEL)];
   }
 
-  const occupied = [...new Set(electrons.map(e => e.shell))].sort((a,b) => a-b);
+  const occupied = _occupiedShells();  // reused ascending array (no per-frame alloc)
 
   const showAR = _showElectric;
 
   // 3D grid — cyberpunk neon
-  if (showGrid && occupied.length) {
+  if (showGrid && _quality !== 'low' && occupied.length) {   // `low`: drop the grid entirely (full-screen blit + rebuilds)
     const _gScale = shellBaseR * orb3dRadScale * viewZoom;
     const _step   = 20;
     const _extPm  = Math.min(2000, Math.ceil(Math.hypot(W, H) / 2 / _gScale / _step) * _step);
@@ -1806,8 +1970,15 @@ function drawOrbit3D(ctx) {
     // Cache key covers everything that affects grid geometry, color, or quality tier
     const _cacheKey = `${W}|${H}|${cx.toFixed(1)}|${cy.toFixed(1)}|${_gScale.toFixed(4)}|${_gr},${_gg},${_gb}|${AZ.toFixed(4)}|${EL.toFixed(4)}|${_quality}`;
     if (!_gridOC || _gridOCKey !== _cacheKey) {
-      _gridOC = new OffscreenCanvas(W, H);
+      // Reuse one full-screen canvas. The key changes every frame while the view is
+      // dragged or zoomed; allocating a fresh W×H OffscreenCanvas per frame piled up
+      // GPU memory faster than GC freed it (a real crash risk on Chromebooks).
+      if (!_gridOC || _gridOC.width !== W || _gridOC.height !== H) _gridOC = new OffscreenCanvas(W, H);
       const gc = _gridOC.getContext('2d');
+      gc.setTransform(1, 0, 0, 1, 0, 0);
+      gc.shadowBlur = 0;
+      gc.globalAlpha = 1;
+      gc.clearRect(0, 0, W, H);
 
       // Build line path once, reused for hi-res multi-pass bloom
       const _linePath = () => {
@@ -1896,7 +2067,7 @@ function drawOrbit3D(ctx) {
   }
 
   // Shell reference rings
-  if (showAR) {
+  if (showAR && _quality !== 'low') {   // `low`: skip the per-shell reference ellipses (decorative)
     ctx.lineWidth = 1;
     for (const s of occupied) {
       const r3d = getShellRadius(s) * orb3dRadScale * viewZoom;
@@ -1920,11 +2091,15 @@ function drawOrbit3D(ctx) {
 
   // Trails
   const _visHH = cy - _cachedTbH;  // visible vertical half-height from orbit center
-  ctx.lineWidth = 1.5;
+  // Simple/Detailed: 1px trails. At ≤1px Skia uses its hairline rasterizer, which is
+  // ~7× cheaper than a 1.5px AA stroke (trails are ~85% of orbit frame cost on slow
+  // hardware). Alpha is boosted by orb3dHairAlpha so the thinner line carries the same ink.
+  const _hair = _quality !== 'hi-res';
+  ctx.lineWidth = _hair ? 1 : 1.5;
 
   ctx.lineCap = 'round';
   _trailOC = null;
-  const _nB = _quality === 'hi-res' ? 32 : _quality === 'detailed' ? 4 : 2;
+  const _nB = _quality === 'hi-res' ? 32 : _quality === 'detailed' ? 4 : _quality === 'simple' ? 2 : 1;
   const _trailMaxAlpha = LIGHT ? 0.92 : 0.75;
   for (const s of occupied) {
     const r3d = getShellRadius(s) * orb3dRadScale * viewZoom;
@@ -1932,36 +2107,54 @@ function drawOrbit3D(ctx) {
     if (_shellOffScreen && _quality !== 'hi-res') continue;
     const col = (LIGHT ? SHELL_COLORS_LIGHT : SHELL_COLORS)[s % SHELL_COLORS.length];
 
-    const _ePts = [];
+    // Project trails into reused flat buffers (x0,y0,x1,y1,…) — the old per-point
+    // [x,y] arrays made ~5k short-lived allocations per frame for a full atom.
+    // On the `low` tier we also (a) render only the last _LOW_TRAIL_CAP points — a shorter
+    // comet is far less work and fits the "basics only" look — and (b) decimate by
+    // _trailStride. Decimation keys off each point's absolute step tag (pt[3]), not its array
+    // index, so the kept subset advances smoothly with the FIFO instead of flickering between
+    // parities. The first rendered point and the newest point are always kept so the head/dot
+    // stays attached and the tail doesn't jump. simple/detailed/hi-res: full trail, no decimation.
+    const _low = _quality === 'low';
+    const _trailStride = _low ? _LOW_TRAIL_STRIDE : 1;
+    let _nE = 0;
     for (const grp of orb3dShellGroups[s]) {
       for (let ei = 0; ei < grp.count; ei++) {
         const trail = grp.trails[ei];
         const n = trail.length;
-        if (n < 2) { _ePts.push(null); continue; }
-        const pts = [];
-        for (let i = 0; i < n; i++) pts.push(proj3D(trail[i][0], trail[i][1], trail[i][2], r3d));
-        _ePts.push(pts);
+        if (n < 2) continue;
+        const _start = _low ? Math.max(0, n - _LOW_TRAIL_CAP) : 0;
+        let buf = _projBufs[_nE];
+        if (!buf || buf.length < n * 2) buf = _projBufs[_nE] = new Float32Array(Math.max(n, 160) * 2);
+        let w = 0;
+        for (let i = _start; i < n; i++) {
+          const t = trail[i];
+          if (_trailStride > 1 && i !== _start && i !== n - 1 && (t[3] % _trailStride) !== 0) continue;
+          const x = t[0]*r3d, z = t[2]*r3d;
+          buf[w*2]   = cx + (x*cosAZ + z*sinAZ);
+          buf[w*2+1] = cy - (t[1]*r3d*cosEL - (-x*sinAZ + z*cosAZ)*sinEL);
+          w++;
+        }
+        _projLens[_nE++] = w;
       }
     }
 
     ctx.strokeStyle = col;
     for (let b = 0; b < _nB; b++) {
-      const _a = ((b + 1) / _nB) * _trailMaxAlpha;
-      ctx.globalAlpha = (_nB !== 32 && b === 0) ? _a * 0.5 : _a;
+      const _a = ((b + 1) / _nB) * _trailMaxAlpha * (_hair ? orb3dHairAlpha : 1);
+      ctx.globalAlpha = Math.min(1, (_nB !== 32 && b === 0) ? _a * 0.5 : _a);
       ctx.beginPath();
-      for (const pts of _ePts) {
-        if (!pts) continue;
-        const np = pts.length;
+      for (let e = 0; e < _nE; e++) {
+        const P = _projBufs[e], np = _projLens[e];
         const i0 = Math.round(b / _nB * (np - 1));
         const i1 = Math.round((b + 1) / _nB * (np - 1));
         if (i1 <= i0) continue;
-        ctx.moveTo(pts[i0][0], pts[i0][1]);
-        const mid0x = (pts[i0][0] + pts[Math.min(i0+1,np-1)][0]) / 2;
-        const mid0y = (pts[i0][1] + pts[Math.min(i0+1,np-1)][1]) / 2;
-        ctx.lineTo(mid0x, mid0y);
+        const j0 = Math.min(i0+1, np-1);
+        ctx.moveTo(P[i0*2], P[i0*2+1]);
+        ctx.lineTo((P[i0*2] + P[j0*2]) / 2, (P[i0*2+1] + P[j0*2+1]) / 2);
         for (let i = i0 + 1; i < i1; i++)
-          ctx.quadraticCurveTo(pts[i][0], pts[i][1], (pts[i][0]+pts[i+1][0])/2, (pts[i][1]+pts[i+1][1])/2);
-        ctx.lineTo(pts[i1][0], pts[i1][1]);
+          ctx.quadraticCurveTo(P[i*2], P[i*2+1], (P[i*2]+P[i*2+2])/2, (P[i*2+1]+P[i*2+3])/2);
+        ctx.lineTo(P[i1*2], P[i1*2+1]);
       }
       ctx.stroke();
     }
@@ -1970,11 +2163,11 @@ function drawOrbit3D(ctx) {
     if (orb3dDotR > 0 && !_shellOffScreen) {
       ctx.fillStyle = col;
       ctx.beginPath();
-      for (const pts of _ePts) {
-        if (!pts) continue;
-        const np = pts.length;
-        const [tx, ty] = pts[np - 1];
-        const [px2, py2] = pts[Math.max(0, np - 3)];
+      for (let e = 0; e < _nE; e++) {
+        const P = _projBufs[e], np = _projLens[e];
+        const tx = P[(np-1)*2], ty = P[(np-1)*2+1];
+        const k = Math.max(0, np - 3);
+        const px2 = P[k*2], py2 = P[k*2+1];
         let dx = tx - px2, dy = ty - py2;
         const dl = Math.sqrt(dx*dx + dy*dy);
         if (dl > 0.5) { dx /= dl; dy /= dl; } else { dx = 1; dy = 0; }
@@ -2142,6 +2335,12 @@ function syncOrb3dShellSliders() {
   const dotLbl = document.createElement('label'); dotLbl.textContent='dot size';
   const dotIn = _mkSlider(0, 12, 0.5, orb3dDotR, v=>{ orb3dDotR=v; dotVal.textContent=v.toFixed(1); });
   globalGrp.appendChild(_mkRow(dotLbl, dotIn, dotVal));
+
+  // hairline trail alpha boost (Simple/Detailed only)
+  const haVal = document.createElement('span'); haVal.className='dev-val'; haVal.textContent=orb3dHairAlpha.toFixed(2)+'×';
+  const haLbl = document.createElement('label'); haLbl.textContent='1px α';
+  const haIn = _mkSlider(1, 2.5, 0.05, orb3dHairAlpha, v=>{ orb3dHairAlpha=v; haVal.textContent=v.toFixed(2)+'×'; });
+  globalGrp.appendChild(_mkRow(haLbl, haIn, haVal));
 
   container.appendChild(globalGrp);
 
@@ -2644,6 +2843,12 @@ let showForceValues = false;
 
 // Drawn in screen space after ctx.restore() — constant visual density at all zoom levels.
 // nucSX/nucSY: nucleus screen position; W/H: canvas dims; tbH: toolbar height.
+// The grid only changes geometry on pan/zoom/resize, but its alpha pulses every
+// frame. So the line work (including Hi-res's three shadowBlur bloom passes) is
+// rendered once into two full-screen layers at full alpha — minor and major — and
+// each frame just blits them with the pulsing globalAlpha. Was the single largest
+// cost of a Shells frame (≈half in Simple/Detailed, ≈85% in Hi-res).
+let _gridMinorOC = null, _gridMajorOC = null, _gridLayerKey = '';
 function _drawGrid(ctx, nucSX, nucSY, W, H, tbH, zoom) {
   const LIGHT  = document.body.classList.contains('screenshot-mode');
   const tron   = !LIGHT;
@@ -2659,93 +2864,100 @@ function _drawGrid(ctx, nucSX, nucSY, W, H, tbH, zoom) {
 
   const majorAlpha = tron ? 0.45 + 0.35 * pulse      : 0.30;
   const minorAlpha = tron ? 0.07 + 0.08 * pulseMinor : 0.12;
-  const majorColor = tron ? `rgba(${gr},${gg},${gb},${majorAlpha})`  : `rgba(${gr},${gg},${gb},${majorAlpha})`;
-  const minorColor = tron ? `rgba(${gr},${gg},${gb},${minorAlpha})`  : `rgba(${gr},${gg},${gb},${minorAlpha})`;
-  const glowColor  = `rgb(${gr},${gg},${gb})`;
-  const glowBlur   = 0; // shadowBlur on grid major lines reserved for hi-res only (see below)
+  const bloom      = !LIGHT && _quality === 'hi-res';
+
+  const key = `${W}|${H}|${nucSX.toFixed(2)}|${nucSY.toFixed(2)}|${tbH}|${major}|${gridType}|${gr},${gg},${gb}|${LIGHT}|${bloom}`;
+  if (!_gridMinorOC || _gridLayerKey !== key) {
+    if (!_gridMinorOC || _gridMinorOC.width !== W || _gridMinorOC.height !== H) {
+      _gridMinorOC = new OffscreenCanvas(W, H);
+      _gridMajorOC = new OffscreenCanvas(W, H);
+    }
+    _buildGridLayers(_gridMinorOC.getContext('2d'), _gridMajorOC.getContext('2d'),
+                     nucSX, nucSY, W, H, tbH, zoom, major, minor, sub, tron, bloom, gr, gg, gb);
+    _gridLayerKey = key;
+  }
 
   ctx.save();
+  ctx.globalAlpha = minorAlpha;
+  ctx.drawImage(_gridMinorOC, 0, 0);
+  ctx.globalAlpha = majorAlpha;
+  ctx.drawImage(_gridMajorOC, 0, 0);
+  ctx.restore();
+}
 
+// Draws grid lines at full alpha; _drawGrid applies the (pulsing) alpha at blit time.
+function _buildGridLayers(mc, Mc, nucSX, nucSY, W, H, tbH, zoom, major, minor, sub, tron, bloom, gr, gg, gb) {
+  for (const c of [mc, Mc]) {
+    c.setTransform(1, 0, 0, 1, 0, 0);
+    c.globalAlpha = 1; c.shadowBlur = 0;
+    c.clearRect(0, 0, W, H);
+  }
+  const glowColor = `rgb(${gr},${gg},${gb})`;
   const majorLW = tron ? Math.max(0.5, 1.5 * Math.pow(zoom, 0.35)) : 1;
+  mc.strokeStyle = `rgb(${gr},${gg},${gb})`;
+  mc.lineWidth   = 1;
 
-  // Shared: draw major lines as a batched path (square or radial), then stroke N times
+  // Major lines: path built once, stroked 3× with shadowBlur for Hi-res bloom
   const _strokeMajor = (alpha, lw, blur) => {
-    ctx.shadowColor = glowColor;
-    ctx.shadowBlur  = blur;
-    ctx.strokeStyle = `rgba(${gr},${gg},${gb},${alpha})`;
-    ctx.lineWidth   = lw;
-    ctx.stroke();
-    ctx.shadowBlur  = 0;
+    Mc.shadowColor = glowColor;
+    Mc.shadowBlur  = blur;
+    Mc.strokeStyle = `rgba(${gr},${gg},${gb},${alpha})`;
+    Mc.lineWidth   = lw;
+    Mc.stroke();
+    Mc.shadowBlur  = 0;
+  };
+  const _majorPasses = () => {
+    if (bloom) {
+      _strokeMajor(0.30, majorLW * 2.8, 26);
+      _strokeMajor(0.60, majorLW * 1.2, 11);
+      _strokeMajor(1,    majorLW,        4);
+    } else {
+      _strokeMajor(1, majorLW, 0);
+    }
   };
 
   if (gridType === 'square') {
-    // Minor lines — single batched stroke
     const x0minor = ((nucSX % minor) + minor) % minor;
     const y0minor = ((nucSY % minor) + minor) % minor;
-    ctx.strokeStyle = minorColor;
-    ctx.lineWidth   = 1;
-    ctx.beginPath();
+    mc.beginPath();
     for (let x = x0minor; x <= W; x += minor) {
       if (Math.round((x - nucSX) / minor) % sub === 0) continue;
-      ctx.moveTo(x, tbH); ctx.lineTo(x, H);
+      mc.moveTo(x, tbH); mc.lineTo(x, H);
     }
     for (let y = y0minor; y <= H; y += minor) {
       if (y < tbH) continue;
       if (Math.round((y - nucSY) / minor) % sub === 0) continue;
-      ctx.moveTo(0, y); ctx.lineTo(W, y);
+      mc.moveTo(0, y); mc.lineTo(W, y);
     }
-    ctx.stroke();
+    mc.stroke();
 
-    // Major lines — build path once, stroke multiple times for bloom
     const x0major = ((nucSX % major) + major) % major;
     const y0major = ((nucSY % major) + major) % major;
-    ctx.beginPath();
-    for (let x = x0major; x <= W; x += major) { ctx.moveTo(x, tbH); ctx.lineTo(x, H); }
-    for (let y = y0major; y <= H; y += major) { if (y < tbH) continue; ctx.moveTo(0, y); ctx.lineTo(W, y); }
-
-    if (!LIGHT && _quality === 'hi-res') {
-      _strokeMajor(majorAlpha * 0.30, majorLW * 2.8, 26);
-      _strokeMajor(majorAlpha * 0.60, majorLW * 1.2, 11);
-      _strokeMajor(majorAlpha,        majorLW,        4);
-    } else {
-      _strokeMajor(majorAlpha, majorLW, glowBlur);
-    }
-
+    Mc.beginPath();
+    for (let x = x0major; x <= W; x += major) { Mc.moveTo(x, tbH); Mc.lineTo(x, H); }
+    for (let y = y0major; y <= H; y += major) { if (y < tbH) continue; Mc.moveTo(0, y); Mc.lineTo(W, y); }
+    _majorPasses();
   } else {
     // Radial — concentric rings + spokes
     const maxR = Math.hypot(Math.max(nucSX, W - nucSX), Math.max(nucSY - tbH, H - nucSY));
-
-    // Minor rings — single batched stroke (moveTo before each arc prevents connecting lines)
-    ctx.strokeStyle = minorColor;
-    ctx.lineWidth   = 1;
-    ctx.beginPath();
+    mc.beginPath();
     for (let r = minor; r <= maxR; r += minor) {
       if (Math.round(r / minor) % sub === 0) continue;
-      ctx.moveTo(nucSX + r, nucSY); ctx.arc(nucSX, nucSY, r, 0, Math.PI * 2);
+      mc.moveTo(nucSX + r, nucSY); mc.arc(nucSX, nucSY, r, 0, Math.PI * 2);
     }
-    ctx.stroke();
+    mc.stroke();
 
-    // Major rings + spokes — build path once, stroke multiple times for bloom
-    ctx.beginPath();
+    Mc.beginPath();
     for (let r = major; r <= maxR; r += major) {
-      ctx.moveTo(nucSX + r, nucSY); ctx.arc(nucSX, nucSY, r, 0, Math.PI * 2);
+      Mc.moveTo(nucSX + r, nucSY); Mc.arc(nucSX, nucSY, r, 0, Math.PI * 2);
     }
     for (let deg = 0; deg < 360; deg += 30) {
       const rad = deg * Math.PI / 180;
-      ctx.moveTo(nucSX, nucSY);
-      ctx.lineTo(nucSX + maxR * Math.cos(rad), nucSY + maxR * Math.sin(rad));
+      Mc.moveTo(nucSX, nucSY);
+      Mc.lineTo(nucSX + maxR * Math.cos(rad), nucSY + maxR * Math.sin(rad));
     }
-
-    if (!LIGHT && _quality === 'hi-res') {
-      _strokeMajor(majorAlpha * 0.30, majorLW * 2.8, 26);
-      _strokeMajor(majorAlpha * 0.60, majorLW * 1.2, 11);
-      _strokeMajor(majorAlpha,        majorLW,        4);
-    } else {
-      _strokeMajor(majorAlpha, majorLW, glowBlur);
-    }
+    _majorPasses();
   }
-
-  ctx.restore();
 }
 
 function _anchorPm(z) {
@@ -2765,9 +2977,11 @@ function getShellRadius(s) {
     if (isIon) {
       // Use the ionic radius directly as the anchor for the ion's outer shell.
       // Inner shells scale proportionally from that same anchor via SHELL_RADII_PM.
-      const ionOuter = electrons.some(e => e.shell != null)
-        ? Math.max(...electrons.map(e => e.shell))
-        : table.length - 1;
+      // Plain loop: getShellRadius runs several times per electron per frame, so
+      // avoid the some()/map()/spread allocations here.
+      let ionOuter = -1;
+      for (const e of electrons) if (e.shell != null && e.shell > ionOuter) ionOuter = e.shell;
+      if (ionOuter < 0) ionOuter = table.length - 1;
       const refPm = table[ionOuter] ?? table[table.length - 1];
       pm = ionData.r * table[s] / refPm;
     } else {
@@ -2777,7 +2991,11 @@ function getShellRadius(s) {
   } else {
     pm = (s + 1) * (s + 1) * 53 / Z;
   }
-  const px = pm * shellBaseR;
+  let px = pm * shellBaseR;
+  // For K (Z=19) and heavier, spread the innermost two shells farther out so the
+  // tightly-packed inner shells stay visually distinguishable. Fe/Cu/Zn pack even
+  // tighter, so they get an extra bump. Only these two shells are touched.
+  if (Z >= 19 && s <= 1) px *= (Z === 26 || Z === 29 || Z === 30) ? 1.8 : 1.5;
   // Inner shell must clear the nucleus
   if (s === 0 && animParent) return Math.max(px, animParent.sphereR * 1.4);
   return px;
@@ -2978,7 +3196,7 @@ function fvArrowOnCtx(c, fromX, fromY, nx, ny, len, color, lw, headLen) {
   const baseX = tipX - nx * HEAD, baseY = tipY - ny * HEAD;
   c.strokeStyle = color; c.fillStyle = color;
   c.save();
-  c.shadowColor = color; c.shadowBlur = (_quality === 'simple' || document.body.classList.contains('screenshot-mode')) ? 0 : 8;
+  c.shadowColor = color; c.shadowBlur = (_isLowTier() || document.body.classList.contains('screenshot-mode')) ? 0 : 8;
   c.lineWidth = lw; c.globalAlpha = 1.0; c.lineCap = 'round';
   c.beginPath(); c.moveTo(fromX, fromY);
   c.quadraticCurveTo(midX, midY, baseX, baseY);
@@ -3635,7 +3853,12 @@ function draw() {
   const LIGHT = document.body.classList.contains('screenshot-mode');
   ctx.fillStyle = LIGHT ? getBgColor() : '#05040f';
   ctx.fillRect(0, 0, canvas.width, canvas.height);
-  if (currentTab === 'orbit3d') { drawOrbit3D(ctx); return; }
+  if (currentTab === 'orbit3d') {
+    const _t0 = performance.now();
+    drawOrbit3D(ctx);
+    _recordOrbitDrawCost(performance.now() - _t0);
+    return;
+  }
   if (!animParent) { drawEnergyGraph(); return; }
 
   const _W = canvas.width, _H = canvas.height;
@@ -3643,7 +3866,7 @@ function draw() {
   const _camX = _W / 2 + getCameraShiftX() + panOffsetX;
   const _valenceShell = (currentTab === 'shells' && electrons.length) ? electrons.reduce((m, e) => Math.max(m, e.shell), 0) : -1;
 
-  if (showGrid) {
+  if (showGrid && _quality !== 'low') {   // `low`: no grid in Shells either (its checkbox is hidden)
     _drawGrid(ctx, _camX, _centerY + panOffsetY, _W, _H, _cachedTbH, viewZoom);
   }
 
@@ -3654,13 +3877,13 @@ function draw() {
 
   if (!showParticles) drawCloudOutline(animParent.cx, animParent.cy, animParent.sphereR);
   if (showParticles) {
-    if (_imgParent && _quality === 'simple') {
+    if (_imgParent && _isLowTier()) {
       const jx = (Math.random() - 0.5) * 0.7, jy = (Math.random() - 0.5) * 0.7;
       ctx.drawImage(_imgParent, animParent.cx - _imgParent.width / 2 + jx, animParent.cy - _imgParent.height / 2 + jy);
     } else {
       const _svFlat = _flatFill, _svQ = _quality;
       if (_quality === 'hi-res') _flatFill = false;
-      else if (_quality === 'simple') _quality = 'detailed';
+      else if (_isLowTier()) _quality = 'detailed';
       drawParticles(animParent.particles, 1);
       _flatFill = _svFlat; _quality = _svQ;
     }
@@ -3715,8 +3938,7 @@ function draw() {
       _bgCanvas = new OffscreenCanvas(_W, _H);
       _bgCtx = _bgCanvas.getContext('2d');
     }
-    _bgCtx.clearRect(0, 0, _W, _H);
-    _bgCtx.drawImage(canvas, 0, 0);
+    _bgCtx.drawImage(canvas, 0, 0);  // main canvas is opaque, so no clear needed first
     // Draw valence glows on main canvas to complete this 15fps frame
     ctx.save();
     ctx.translate(_camX, _centerY + panOffsetY);
@@ -3755,7 +3977,7 @@ function updateParticleCounters() {
 document.getElementById('zoomSlider').addEventListener('input', function () {
   viewZoom = zoomFromSlider(parseFloat(this.value));
   heatmapDirty = true;
-  draw();
+  requestDraw();
 });
 
 document.getElementById('clearBtn').addEventListener('click', () => {
@@ -3809,6 +4031,11 @@ document.getElementById('gridTypeSelect').addEventListener('change', function() 
 
 document.getElementById('qualitySelect').addEventListener('change', function() {
   _applyQuality(this.value);
+  // A manual pick is authoritative: it becomes the new auto ceiling and clears any
+  // oscillation lock, so adaptive quality works around the user's choice, not against it.
+  _qualityCeiling = this.value;
+  _tierEnteredVia = 'manual'; _tierEnteredAt = performance.now();
+  _lastAdaptAt = performance.now(); _drawCosts.length = 0;
   draw();
 });
 
@@ -3851,29 +4078,146 @@ document.getElementById('energyGraphToggle').addEventListener('click', function(
 let idleParticleRAF = null;
 let _idleParticleLast = 0;
 let _orb3dLast = 0;
+let _fastLast = 0;        // last shells fast-path frame
+let _valStepLast = 0;     // last valence-shell physics step (shells tab)
+let _drawPending = false; // set by requestDraw(); serviced once per animation frame
+// Frame-rate ceilings. RAF fires at the display rate, so on 120/144 Hz screens
+// the uncapped paths used to render 2× more frames than needed.
+const FRAME_MS_60 = 12;   // ≥12 ms passes every 60 Hz frame, every other 120 Hz frame
+const FRAME_MS_30 = 33;
+const FRAME_MS_PAUSED = 200; // ~5fps heartbeat for a static (paused, not-dragged) weak-tier orbit
+const FRAME_MS_PAUSED_LOW = 400; // `low`: ~2.5fps — a frozen Low view has even less reason to redraw
+const VAL_STEP_MS = 16.67; // valence physics is tuned per 60 Hz step
+
+// Coalesce redraws from high-frequency input (pan drag, zoom slider) into the
+// next animation frame instead of drawing synchronously on every event.
+function requestDraw() {
+  if (!idleParticleRAF) { draw(); return; }  // loop paused (tab hidden) — draw directly
+  _drawPending = true;
+}
+
+// ── Runtime adaptive quality ──────────────────────────────────────────────────
+// The startup benchmark scores the machine once, but real capacity drifts mid-session:
+// thermal throttling on a Chromebook, battery-saver clocks, background tabs stealing the
+// GPU, or a heavy atom getting loaded. This watches the ACTUAL per-frame cost of the orbit
+// draw (timed in draw(), not the RAF interval — intervals are polluted by our own 5fps/30fps
+// throttles) and steps the tier down when the machine can't keep up, back up when it recovers.
+//
+// Oscillation is the enemy, so: median (not mean) to ignore one-off GC spikes; a cooldown
+// between changes; a ceiling (never auto-exceed what startup/the user selected); very low
+// headroom required before upgrading (an upgrade multiplies cost); and a guard that, if a
+// tier we just upgraded INTO fails almost immediately, permanently stops auto-retrying it.
+const _QTIERS = ['low', 'simple', 'detailed', 'hi-res'];   // index = relative cost, low → high
+let _qualityCeiling = 'hi-res';   // highest tier auto may select; pinned at startup / on manual pick
+let _autoQuality = true;          // master switch — window.setAutoQuality(false) to freeze the tier
+const _drawCosts = [];            // rolling orbit draw-cost samples (ms)
+const _DRAW_COST_WINDOW  = 40;
+const _ADAPT_COOLDOWN_MS = 2500;  // min gap between tier changes
+const _ADAPT_MIN_SAMPLES = 20;    // need a settled window before judging
+const _DOWN_FACTOR = 0.9;         // downgrade if median draw cost > 0.9 × frame budget
+let   _lastAdaptAt = 0;
+let   _tierEnteredVia = 'init';   // 'up' | 'down' | 'manual' | 'init'
+let   _tierEnteredAt  = 0;
+const _OSC_WINDOW_MS  = 12000;    // a tier upgraded-into that fails this fast gets locked out
+let   _lastAdaptMedian = 0;       // for perfReport()
+
+function _budgetMs()  { return _quality === 'hi-res' ? 16.7 : 33.3; }
+function _median(arr) {
+  const a = arr.slice().sort((x, y) => x - y);
+  const m = a.length >> 1;
+  return a.length % 2 ? a[m] : (a[m - 1] + a[m]) / 2;
+}
+function _setAutoQuality(level, via, now) {
+  _applyQuality(level);
+  _tierEnteredVia = via; _tierEnteredAt = now; _lastAdaptAt = now;
+  _drawCosts.length = 0;
+  if (window._perfLog) console.log(`[adapt] ${via} → ${level}  (median ${_lastAdaptMedian.toFixed(1)}ms, budget ${_budgetMs().toFixed(1)}ms)`);
+  draw();
+}
+function _recordOrbitDrawCost(ms) {
+  if (orb3dDragState) return;   // ignore transient grid-rebuild spikes while rotating
+  _drawCosts.push(ms);
+  if (_drawCosts.length > _DRAW_COST_WINDOW) _drawCosts.shift();
+  if (!_autoQuality) return;
+  const now = performance.now();
+  if (now - _lastAdaptAt < _ADAPT_COOLDOWN_MS || _drawCosts.length < _ADAPT_MIN_SAMPLES) return;
+  const med = _lastAdaptMedian = _median(_drawCosts);
+  const budget = _budgetMs();
+  const cur = _QTIERS.indexOf(_quality), ceil = _QTIERS.indexOf(_qualityCeiling);
+  if (med > budget * _DOWN_FACTOR && cur > 0) {
+    // If we only just climbed into this tier and it already can't hold, don't try it again.
+    if (_tierEnteredVia === 'up' && now - _tierEnteredAt < _OSC_WINDOW_MS) _qualityCeiling = _QTIERS[cur - 1];
+    _setAutoQuality(_QTIERS[cur - 1], 'down', now);
+  } else if (cur < ceil) {
+    // Upgrading multiplies cost, so demand lots of headroom — and a lot more before the
+    // expensive jump into hi-res (≈8× the trail cost of detailed) than for simple→detailed (≈2×).
+    const upFactor = _QTIERS[cur + 1] === 'hi-res' ? 0.15 : 0.40;
+    if (med < budget * upFactor) _setAutoQuality(_QTIERS[cur + 1], 'up', now);
+  }
+}
+window.setAutoQuality = function(on) { _autoQuality = !!on; if (!on) _drawCosts.length = 0; return _autoQuality; };
+window.perfReport = function() {
+  const med = _drawCosts.length ? _median(_drawCosts) : NaN;
+  console.table({
+    quality:        _quality,
+    ceiling:        _qualityCeiling,
+    autoQuality:    _autoQuality,
+    'median draw':  (isNaN(med) ? '—' : med.toFixed(1) + 'ms'),
+    'frame budget': _budgetMs().toFixed(1) + 'ms',
+    samples:        _drawCosts.length,
+    enteredVia:     _tierEnteredVia,
+    trailStride:    _LOW_TRAIL_STRIDE + (_quality === 'low' ? ' (active)' : ' (low only)'),
+  });
+  return med;
+};
+
 function idleParticleLoop(now) {
   const _isShells = currentTab === 'shells';
   const _is15fps = now - _idleParticleLast >= 67;
   const _isOrbit = currentTab === 'orbit3d';
-  // Hi-res orbit3D: 60fps; Simple/Detailed: 30fps (trail history doesn't need more)
-  const _orb3dReady = _quality === 'hi-res' || now - _orb3dLast >= 33;
+  // Hi-res orbit3D: 60fps; Simple/Detailed: 30fps (trail history doesn't need more).
+  // Paused + not being dragged on a weak tier: nothing moves, so drop to a 5fps
+  // heartbeat (any external change still shows within ~200ms) — saves ~83% of the
+  // render cost of a paused orbit, the common "click to inspect" state. Hi-res keeps
+  // its full cadence so the grid/particle "alive" shimmer is preserved.
+  const _orbPausedStatic = orb3dPaused && !orb3dDragState && _quality !== 'hi-res';
+  const _orbInterval = _orbPausedStatic ? (_quality === 'low' ? FRAME_MS_PAUSED_LOW : FRAME_MS_PAUSED)
+                     : (_quality === 'hi-res' ? FRAME_MS_60 : FRAME_MS_30);
+  const _orb3dReady = now - _orb3dLast >= _orbInterval;
 
   if (_isOrbit && _orb3dReady) {
     // dt: elapsed ms / 16.67 (60fps baseline). Cap at 2.5 to prevent jumps after tab restore.
     const _dt = Math.min((_orb3dLast > 0 ? now - _orb3dLast : 16.67) / 16.67, 2.5);
     _orb3dLast = now;
-    if (animParent && showParticles && !(_quality === 'simple')) updateParticleJitter(animParent.particles.length, 1, true);
+    // Nucleus jitter only earns its keep at hi-res — in orbit the nucleus is small and
+    // central, so the shimmer is invisible on the detailed tier but still costs a full
+    // particle-array pass every frame.
+    if (animParent && showParticles && _quality === 'hi-res') updateParticleJitter(animParent.particles.length, 1, true);
     if (!orb3dPaused) stepOrbit3D(_dt);
+    _drawPending = false;
     draw();
-  } else if (!_isOrbit && _is15fps) {   // shells: ~15fps
-    _idleParticleLast = now;
-    if (animParent && showParticles && !(_quality === 'simple' && _isShells)) updateParticleJitter(animParent.particles.length, 1, true);
-    stepElectronsShells();
+  } else if (!_isOrbit && (_is15fps || _drawPending)) {   // shells: ~15fps (or an input-driven redraw)
+    if (_is15fps) {
+      _idleParticleLast = now;
+      if (animParent && showParticles && !(_isLowTier() && _isShells)) updateParticleJitter(animParent.particles.length, 1, true);
+      stepElectronsShells();
+      _valStepLast = now;
+    }
+    _drawPending = false;
+    _fastLast = now;
     if (animParent) draw();
-  } else if (_isShells && animParent && electrons.length && _bgCanvas) {
-    // 60fps fast path: step only valence electrons, composite from 15fps snapshot
+  } else if (_isShells && animParent && electrons.length && _bgCanvas &&
+             now - _fastLast >= (_isLowTier() ? FRAME_MS_30 : FRAME_MS_60)) {
+    // Fast path (60fps; 30fps in Simple): step only valence electrons, composite
+    // from the 15fps snapshot. Physics steps are time-based so valence speed is
+    // the same at any frame rate.
+    _fastLast = now;
     const _vs = electrons.reduce((m, e) => Math.max(m, e.shell), 0);
-    stepElectronsShells(_vs);
+    const _steps = Math.min(4, Math.round((now - _valStepLast) / VAL_STEP_MS));
+    if (_steps > 0) {
+      for (let k = 0; k < _steps; k++) stepElectronsShells(_vs);
+      _valStepLast = (now - _valStepLast > VAL_STEP_MS * 4) ? now : _valStepLast + _steps * VAL_STEP_MS;
+    }
     const _W = canvas.width, _H = canvas.height;
     const _centerY = (_cachedTbH + _H) / 2;
     const _camX = _W / 2 + getCameraShiftX() + panOffsetX;
@@ -4341,7 +4685,7 @@ canvas.addEventListener('pointermove', e => {
     panOffsetY += e.clientY - _panDragState.lastY;
     _panDragState.lastX = e.clientX;
     _panDragState.lastY = e.clientY;
-    draw();
+    requestDraw();
     return;
   }
   if (orb3dDragState && currentTab === 'orbit3d') {
@@ -4578,22 +4922,27 @@ initNuclei();
 // the hi-res orbit3D rendering pattern. Two warm passes, minimum taken.
 //   < 8ms  → hi-res    (modern + mid-range hardware)
 //   8–13ms → detailed  (older hardware; flat-fill 60fps viable)
-//   > 13ms → simple    (budget Chromebooks + under load; needs 30fps gate)
-// Hi-res/detailed defaults: all 3 options shown.
-// Simple default: hi-res option removed.
+//   13–40ms → simple  (budget Chromebooks + under load; needs 30fps gate)
+//   > 40ms → low      (would otherwise crash: 1 trail bucket, decimated+short trails, no grid/rings)
+// Hi-res/detailed defaults: all options shown.
+// Simple/low defaults: hi-res option removed.
 (function _startupBenchmark() {
   const ms = _runPerfBenchmark();
+  _benchmarkMs = ms;
   const msT = _runTrailBenchmark();
   const el = document.getElementById('benchScore');
   if (el) el.textContent = `grad ${ms.toFixed(1)}ms  trail ${msT.toFixed(1)}ms`;
   if (msT > 13) {
     const hiOpt = document.querySelector('#qualitySelect option[value="hi-res"]');
     if (hiOpt) hiOpt.remove();
-    _applyQuality('simple');
+    _applyQuality(msT > 40 ? 'low' : 'simple');
   } else if (msT > 8) {
     _applyQuality('detailed');
   }
   // else stays 'hi-res' (default); all three options remain available
+  // Pin the auto-quality ceiling to whatever the benchmark chose — adaptive quality may
+  // drop below this under load and climb back toward it, but never auto-exceed it.
+  _qualityCeiling = _quality;
 }());
 
 setNucleusFromZ(10);
@@ -4614,13 +4963,85 @@ autoSelectOuterShell();
 draw();
 if (!idleParticleRAF) idleParticleLoop();
 
+// ── Crash tracking ─────────────────────────────────────────────────────────
+(function() {
+  const CRASH_KEY  = 'sim_crash_checkpoint';
+  const CLEAN_KEY  = 'sim_clean_exit';
+  const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbx876hooVliEwFIO0wNO3qZ5FyN0UVUgt1iexEVl8O0vQhem6qPU7WG1LqPpqvf8BU/exec';
+  const MAX_FTIMES = 90;
+
+  function lsGet(k)    { try { return localStorage.getItem(k); }    catch { return null; } }
+  function lsSet(k, v) { try { localStorage.setItem(k, v); }        catch {} }
+  function lsDel(k)    { try { localStorage.removeItem(k); }        catch {} }
+
+  // Wrap RAF globally to track frame times without touching the sim loop
+  const _ft = [];
+  let _lastT = 0;
+  const _origRAF = window.requestAnimationFrame.bind(window);
+  window.requestAnimationFrame = function(cb) {
+    return _origRAF(function(t) {
+      const d = t - _lastT;
+      if (_lastT > 0 && d > 4) { _ft.push(Math.round(d * 10) / 10); if (_ft.length > MAX_FTIMES) _ft.shift(); }
+      _lastT = t;
+      cb(t);
+    });
+  };
+
+  function checkpoint() {
+    try {
+      const state = typeof getBugState === 'function' ? getBugState() : {};
+      lsSet(CRASH_KEY, JSON.stringify({ ...state, frameTimes: _ft.slice(), timestamp: new Date().toISOString() }));
+      if (!document.hidden) lsSet(CLEAN_KEY, 'false');
+    } catch {}
+  }
+  setInterval(checkpoint, 1000);
+
+  function submitCrash(raw) {
+    try {
+      const cp = JSON.parse(raw);
+      const simId = (cp.sim || 'unknown') + (cp.version ? '-FTv' + cp.version : '');
+      const stateStr = JSON.stringify(cp);
+      const params = new URLSearchParams({
+        action:     'appendNote',
+        id:         Date.now().toString(36) + Math.random().toString(36).slice(2, 7),
+        studentId:  'AUTO_CRASH',
+        timestamp:  cp.timestamp || new Date().toISOString(),
+        simVersion: simId,
+        simState:   stateStr.length > 3800 ? stateStr.slice(0, 3800) + '…' : stateStr,
+        text:       'AUTO_CRASH: ' + simId + ' at ' + (cp.timestamp || '(unknown)'),
+        isPublic:   false,
+      });
+      fetch(SCRIPT_URL + '?' + params).catch(() => {});
+    } catch {}
+  }
+
+  // Check for crash from previous session
+  const prev      = lsGet(CRASH_KEY);
+  const prevClean = lsGet(CLEAN_KEY);
+  lsDel(CRASH_KEY);
+  lsDel(CLEAN_KEY);
+  if (prev && prevClean === 'false') submitCrash(prev);
+
+  // Mark clean exit on hide or navigation
+  function markClean() { lsSet(CLEAN_KEY, 'true'); }
+  document.addEventListener('visibilitychange', () => { if (document.hidden) markClean(); });
+  window.addEventListener('beforeunload', markClean);
+})();
+
 // ── Bug report button ─────────────────────────────────────────────────────
 function getBugState() {
   return {
     sim:       'electrons',
-    nucleus:   selectedNucleusKey,
-    viewZoom:  +viewZoom.toFixed(3),
-    actionLog: actionLog.slice(),
+    version:   '1.19',
+    nucleus:      selectedNucleusKey,
+    viewZoom:     +viewZoom.toFixed(3),
+    actionLog:    actionLog.slice(),
+    resetCount:   _resetCount,
+    quality:      _quality,
+    benchmarkMs:  _benchmarkMs,
+    activeLoops:  { idleJitter: !!idleParticleRAF, loop: false, tempLoop: false, iconAnim: !!_nucleusIconRAF, replay: false },
+    heapMB:       Math.round((performance.memory?.usedJSHeapSize || 0) / 1048576),
+    canvasSize:   canvas.width + 'x' + canvas.height,
   };
 }
 document.getElementById('bugReportBtn').addEventListener('click', e => {
@@ -4629,10 +5050,16 @@ document.getElementById('bugReportBtn').addEventListener('click', e => {
   const url   = `https://ghostoutfit.github.io/protons/dev/bug-report.html?sim=electrons&sourceUrl=${encodeURIComponent(location.href)}&state=${state}`;
   document.getElementById('bugModalFrame').src = url;
   document.getElementById('bugModal').style.display = 'flex';
+  // Freeze the sim behind the (nearly opaque) modal so the bug-report page gets the CPU/GPU
+  _bugModalOpen = true;
+  if (idleParticleRAF) { cancelAnimationFrame(idleParticleRAF); idleParticleRAF = null; }
 });
+let _bugModalOpen = false;
 function closeBugModal() {
   document.getElementById('bugModal').style.display = 'none';
   document.getElementById('bugModalFrame').src = 'about:blank';
+  _bugModalOpen = false;
+  if (!idleParticleRAF && !document.hidden) idleParticleRAF = requestAnimationFrame(idleParticleLoop);
 }
 document.getElementById('bugModal')?.addEventListener('click', e => {
   if (e.target === document.getElementById('bugModal')) closeBugModal();
@@ -4648,7 +5075,7 @@ document.addEventListener('visibilitychange', () => {
     if (idleParticleRAF) { cancelAnimationFrame(idleParticleRAF); idleParticleRAF = null; }
   } else {
     if (!_nucleusIconRAF) { _iconLast = -67; _nucleusIconEnergy = 1.0; nucleusIconLoop(0); }
-    if (!idleParticleRAF) { idleParticleRAF = requestAnimationFrame(idleParticleLoop); }
+    if (!idleParticleRAF && !_bugModalOpen) { idleParticleRAF = requestAnimationFrame(idleParticleLoop); }
   }
 });
 
